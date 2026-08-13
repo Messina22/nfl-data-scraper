@@ -219,13 +219,14 @@
   async function refresh() {
     refreshBtn.disabled = true;
     refreshBtn.textContent = "Refreshing…";
+    const previous = snapshot.collected_at;
     try {
       await fetch("/api/refresh", { method: "POST" });
-      // Poll briefly while collection runs.
+      // Poll until collected_at advances (or timeout).
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 1500));
         await load();
-        if (snapshot.collected_at) break;
+        if (snapshot.collected_at && snapshot.collected_at !== previous) break;
       }
     } finally {
       refreshBtn.disabled = false;
