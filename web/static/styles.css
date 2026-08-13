@@ -236,6 +236,37 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   color: var(--ink-soft);
 }
 
+.pro-insight {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: baseline;
+  margin: -0.15rem 0 0.55rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 10px;
+  background: rgba(196, 92, 22, 0.08);
+  border: 1px solid rgba(196, 92, 22, 0.18);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.pro-insight-label {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pro-insight-lean {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pro-insight-meta {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
 .side {
   display: grid;
   gap: 0.25rem;

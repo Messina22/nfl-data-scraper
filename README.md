@@ -9,6 +9,7 @@ Collect and display **NFL betting splits** — percentage of **bets** and **mone
 - JSON API at `/api/splits` (plus `/api/sources`, `/api/refresh`, `/api/health`)
 - Snapshot persistence to `data/splits.json` (per-source merge keeps last-good data when a source fails)
 - Periodic refresh (default every 15 minutes)
+- Optional Action Network PRO session via `ACTION_NETWORK_COOKIE` for unlocked money % and projection grade/edge
 
 ## Sources currently wired
 
@@ -16,7 +17,7 @@ Collect and display **NFL betting splits** — percentage of **bets** and **mone
 |--------|-----------------|
 | **VSiN (DraftKings)** | Spread / total / moneyline **handle %** and **bets %** |
 | **VSiN (Circa)** | Same markets from Circa’s reported board |
-| **Action Network** | Public betting API (`bet %` / `money %` when the API exposes them; often empty in preseason or when paywalled) |
+| **Action Network** | Public betting API (`bet %` / `money %`); with PRO cookie also attaches `pro_insights` (lean / grade / edge) from game projections |
 | **Covers Consensus** | Contest consensus picks when Covers publishes NFL matchup rows |
 
 Additional sources can be added under `internal/sources/` and registered in `registry.go`.
@@ -31,7 +32,30 @@ go run . -refresh 10m    # auto-refresh while serving (still localhost by defaul
 
 Bind address defaults to `127.0.0.1:8080`. Only use `-addr :8080` if you intentionally want LAN/public access — `/api/refresh` has no auth and will trigger outbound scrapes.
 
-Environment overrides: `SPLITS_ADDR`, `SPLITS_DATA`.
+Environment overrides: `SPLITS_ADDR`, `SPLITS_DATA`, `ACTION_NETWORK_COOKIE`.
+
+## Action Network PRO cookie
+
+Without a cookie, Action Network often returns empty bet/money fields (paywall / preseason). To unlock Pro public-betting splits and projection leans:
+
+1. Log into Action Network PRO in your browser.
+2. Open DevTools → Network → pick any request to `api.actionnetwork.com`.
+3. Copy the full request `Cookie` header value.
+4. Export it for the collector (never commit this value):
+
+```bash
+export ACTION_NETWORK_COOKIE='paste-cookie-header-here'
+go run .
+```
+
+When the cookie is set, the Action Network collector:
+
+- Sends it on `.../web/v1/scoreboard/publicbetting/nfl`
+- Also fetches `.../web/v1/scoreboard/gameprojections/nfl` and maps per-market lean / grade / edge into each game’s `pro_insights`
+- Soft-fails projections: if splits populate but projections fail, splits still return
+- Surfaces a clear “refresh ACTION_NETWORK_COOKIE” error on 401/403 or still-empty paywalled fields
+
+Cookies expire; refresh the env var when the source starts failing auth.
 
 ## API
 

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"nfl-data-scraper/internal/models"
 )
 
 func TestParsePctAndLine(t *testing.T) {
@@ -83,3 +85,75 @@ func TestParseCoversGameBoxRejectsDuplicateSides(t *testing.T) {
 		t.Fatal("expected reject when sides do not sum near 100")
 	}
 }
+
+func TestActionProInsightsFromOdds(t *testing.T) {
+	away := actionTeam{FullName: "Green Bay Packers", Abbr: "GB"}
+	home := actionTeam{FullName: "Pittsburgh Steelers", Abbr: "PIT"}
+	spreadAway := -3.5
+	spreadHome := 3.5
+	awayEdge := 4.2
+	homeEdge := -1.1
+	over := 44.5
+	overEdge := 2.0
+	mlAway := -120
+	mlHome := 100
+	mlAwayEdge := 1.5
+	mlHomeEdge := -0.5
+	o := &actionOdds{
+		SpreadAway:          &spreadAway,
+		SpreadHome:          &spreadHome,
+		SpreadAwayProj:      &spreadAway,
+		SpreadHomeProj:      &spreadHome,
+		SpreadAwayEdgePct:   &awayEdge,
+		SpreadHomeEdgePct:   &homeEdge,
+		SpreadAwayEdgeGrade: "B+",
+		SpreadHomeEdgeGrade: "D",
+		Total:               &over,
+		OverProj:            &over,
+		UnderProj:           &over,
+		OverEdgePct:         &overEdge,
+		OverEdgeGrade:       "B",
+		MLAwayProj:          &mlAway,
+		MLHomeProj:          &mlHome,
+		MLAwayEdgePct:       &mlAwayEdge,
+		MLHomeEdgePct:       &mlHomeEdge,
+		MLAwayEdgeGrade:     "C+",
+		MLHomeEdgeGrade:     "C",
+	}
+
+	insights := actionProInsights(away, home, o)
+	if len(insights) != 3 {
+		t.Fatalf("expected 3 market insights, got %d: %+v", len(insights), insights)
+	}
+
+	byMarket := map[string]models.ProInsight{}
+	for _, in := range insights {
+		byMarket[string(in.Market)] = in
+	}
+	spread := byMarket["spread"]
+	if spread.Side != models.SideAway || spread.Grade != "B+" || spread.EdgePct == nil || *spread.EdgePct != 4.2 {
+		t.Fatalf("spread insight = %+v", spread)
+	}
+	if !strings.Contains(spread.Label, "Packers") {
+		t.Fatalf("spread label = %q", spread.Label)
+	}
+	total := byMarket["total"]
+	if total.Side != models.SideOver || total.Grade != "B" {
+		t.Fatalf("total insight = %+v", total)
+	}
+	ml := byMarket["moneyline"]
+	if ml.Side != models.SideAway || ml.ProjOdds == nil || *ml.ProjOdds != -120 {
+		t.Fatalf("moneyline insight = %+v", ml)
+	}
+}
+
+func TestActionProInsightsEmptyWithoutProFields(t *testing.T) {
+	away := actionTeam{FullName: "A", Abbr: "A"}
+	home := actionTeam{FullName: "B", Abbr: "B"}
+	o := &actionOdds{MLAway: intPtr(-110), MLHome: intPtr(-110)}
+	if got := actionProInsights(away, home, o); len(got) != 0 {
+		t.Fatalf("expected no insights, got %+v", got)
+	}
+}
+
+func intPtr(v int) *int { return &v }

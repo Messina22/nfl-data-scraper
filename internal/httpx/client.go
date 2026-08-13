@@ -12,6 +12,7 @@ import (
 type Client struct {
 	HTTP    *http.Client
 	Referer string
+	Cookie  string
 }
 
 func New(timeout time.Duration) *Client {
@@ -30,6 +31,9 @@ func (c *Client) Get(ctx context.Context, url string) ([]byte, string, error) {
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	if c.Referer != "" {
 		req.Header.Set("Referer", c.Referer)
+	}
+	if c.Cookie != "" {
+		req.Header.Set("Cookie", c.Cookie)
 	}
 
 	res, err := c.HTTP.Do(req)

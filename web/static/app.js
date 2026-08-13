@@ -81,7 +81,33 @@
     return t >= now - 12 * 3600000 && t <= max;
   }
 
-  function marketBlock(market) {
+  function fmtEdge(v) {
+    if (v == null || Number.isNaN(Number(v))) return null;
+    const n = Number(v);
+    const rounded = Math.round(n * 10) / 10;
+    return rounded > 0 ? `+${rounded}%` : `${rounded}%`;
+  }
+
+  function insightForMarket(insights, marketName) {
+    if (!insights || !insights.length) return null;
+    return insights.find((i) => i.market === marketName) || null;
+  }
+
+  function insightBlock(insight) {
+    if (!insight) return "";
+    const edge = fmtEdge(insight.edge_pct);
+    const bits = [];
+    if (insight.grade) bits.push(`Grade ${escapeHtml(insight.grade)}`);
+    if (edge) bits.push(`Edge ${escapeHtml(edge)}`);
+    const lean = insight.label ? escapeHtml(insight.label) : escapeHtml(insight.side || "");
+    return `<div class="pro-insight" title="Action PRO projection lean">
+      <span class="pro-insight-label">PRO</span>
+      <span class="pro-insight-lean">${lean}</span>
+      ${bits.length ? `<span class="pro-insight-meta">${bits.join(" · ")}</span>` : ""}
+    </div>`;
+  }
+
+  function marketBlock(market, insight) {
     if (!market) {
       return `<article class="market"><h4>Unavailable</h4><p class="error-note" style="padding:0.4rem 0">No data</p></article>`;
     }
@@ -110,7 +136,7 @@
           </div>`;
       })
       .join("");
-    return `<article class="market"><h4>${escapeHtml(market.market)}</h4>${sides}</article>`;
+    return `<article class="market"><h4>${escapeHtml(market.market)}</h4>${insightBlock(insight)}${sides}</article>`;
   }
 
   function escapeHtml(s) {
@@ -165,6 +191,7 @@
         const reports = grp.reports
           .map((g) => {
             const byMarket = Object.fromEntries((g.markets || []).map((m) => [m.market, m]));
+            const insights = g.pro_insights || [];
             return `
               <div class="source-block">
                 <div class="source-label">
@@ -172,9 +199,9 @@
                   <span>${g.num_bets != null ? `${g.num_bets.toLocaleString()} bets tracked` : ""}</span>
                 </div>
                 <div class="markets">
-                  ${marketBlock(byMarket.spread)}
-                  ${marketBlock(byMarket.moneyline)}
-                  ${marketBlock(byMarket.total)}
+                  ${marketBlock(byMarket.spread, insightForMarket(insights, "spread"))}
+                  ${marketBlock(byMarket.moneyline, insightForMarket(insights, "moneyline"))}
+                  ${marketBlock(byMarket.total, insightForMarket(insights, "total"))}
                 </div>
               </div>`;
           })
