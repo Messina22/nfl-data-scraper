@@ -1,0 +1,11 @@
+{
+  "name": "NFL Splitboard",
+  "install": "go mod download && go build ./...",
+  "terminals": [
+    {
+      "name": "splits-server",
+      "command": "go run . -refresh 0"
+    }
+  ],
+  "ports": [8080]
+}
