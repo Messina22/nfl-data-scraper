@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,8 +20,8 @@ func New(timeout time.Duration) *Client {
 	}
 }
 
-func (c *Client) Get(url string) ([]byte, string, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func (c *Client) Get(ctx context.Context, url string) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, "", err
 	}

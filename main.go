@@ -24,11 +24,15 @@ func main() {
 	st := store.New(*dataPath)
 
 	if *collectOnly {
+		if err := st.Load(); err != nil {
+			log.Printf("load store: %v", err)
+		}
 		snap := collect.Run(context.Background(), nil)
-		if err := st.Save(snap); err != nil {
+		if err := st.MergeSave(snap); err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("wrote %d game reports from %d sources to %s", len(snap.Games), len(snap.Sources), *dataPath)
+		merged := st.Latest()
+		log.Printf("wrote %d game reports from %d sources to %s", len(merged.Games), len(merged.Sources), *dataPath)
 		return
 	}
 

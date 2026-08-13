@@ -7,7 +7,7 @@ Collect and display **NFL betting splits** — percentage of **bets** and **mone
 - Multi-source collectors with a shared `Source` interface
 - Dashboard at `/` grouping the same matchup across sources
 - JSON API at `/api/splits` (plus `/api/sources`, `/api/refresh`, `/api/health`)
-- Snapshot persistence to `data/splits.json`
+- Snapshot persistence to `data/splits.json` (per-source merge keeps last-good data when a source fails)
 - Periodic refresh (default every 15 minutes)
 
 ## Sources currently wired
@@ -26,8 +26,10 @@ Additional sources can be added under `internal/sources/` and registered in `reg
 ```bash
 go run .                 # collect + serve dashboard on http://127.0.0.1:8080
 go run . -collect-only   # one-shot scrape into data/splits.json
-go run . -addr :8080 -refresh 10m
+go run . -refresh 10m    # auto-refresh while serving (still localhost by default)
 ```
+
+Bind address defaults to `127.0.0.1:8080`. Only use `-addr :8080` if you intentionally want LAN/public access — `/api/refresh` has no auth and will trigger outbound scrapes.
 
 Environment overrides: `SPLITS_ADDR`, `SPLITS_DATA`.
 

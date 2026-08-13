@@ -47,9 +47,8 @@ func (v *VSiN) pageURL() string {
 }
 
 func (v *VSiN) Collect(ctx context.Context) ([]models.GameSplits, error) {
-	_ = ctx
 	page := v.pageURL()
-	body, finalURL, err := v.client.Get(page)
+	body, finalURL, err := v.client.Get(ctx, page)
 	if err != nil {
 		return nil, err
 	}

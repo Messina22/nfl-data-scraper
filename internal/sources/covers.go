@@ -29,8 +29,7 @@ func (c *CoversConsensus) Name() string { return "Covers Consensus" }
 const coversNFLURL = "https://contests.covers.com/consensus/topconsensus/nfl/overall"
 
 func (c *CoversConsensus) Collect(ctx context.Context) ([]models.GameSplits, error) {
-	_ = ctx
-	body, finalURL, err := c.client.Get(coversNFLURL)
+	body, finalURL, err := c.client.Get(ctx, coversNFLURL)
 	if err != nil {
 		return nil, err
 	}
@@ -56,15 +55,7 @@ func (c *CoversConsensus) Collect(ctx context.Context) ([]models.GameSplits, err
 
 func parseCoversGameBox(s *goquery.Selection, now time.Time, pageURL, id, name string) (models.GameSplits, bool) {
 	teams := s.Find(".covers-CoversConsensusDetails-teamName, .team-name, .covers-CoversConsensus-team")
-	pcts := []float64{}
-	s.Find("*").Each(func(_ int, n *goquery.Selection) {
-		t := strings.TrimSpace(n.Text())
-		if strings.HasSuffix(t, "%") && len(t) <= 4 {
-			if p := parsePct(t); p != nil {
-				pcts = append(pcts, *p)
-			}
-		}
-	})
+	pcts := leafPercents(s)
 	if teams.Length() < 2 || len(pcts) < 2 {
 		return models.GameSplits{}, false
 	}
@@ -74,6 +65,10 @@ func parseCoversGameBox(s *goquery.Selection, now time.Time, pageURL, id, name s
 		return models.GameSplits{}, false
 	}
 	awayPct, homePct := pcts[0], pcts[1]
+	// Consensus sides should roughly form a whole; reject obvious nested-text dupes (e.g. 62/62).
+	if awayPct+homePct < 95 || awayPct+homePct > 105 {
+		return models.GameSplits{}, false
+	}
 	return models.GameSplits{
 		SourceID:   id,
 		SourceName: name,
@@ -90,4 +85,22 @@ func parseCoversGameBox(s *goquery.Selection, now time.Time, pageURL, id, name s
 			},
 		}},
 	}, true
+}
+
+// leafPercents collects percentage values from leaf elements only.
+// Using .Text() on ancestors double-counts nested markup like <div>62%<span>62%</span></div>.
+func leafPercents(s *goquery.Selection) []float64 {
+	var pcts []float64
+	s.Find("*").Each(func(_ int, n *goquery.Selection) {
+		if n.Children().Length() > 0 {
+			return
+		}
+		t := strings.TrimSpace(n.Text())
+		if strings.HasSuffix(t, "%") && len(t) <= 5 {
+			if p := parsePct(t); p != nil {
+				pcts = append(pcts, *p)
+			}
+		}
+	})
+	return pcts
 }

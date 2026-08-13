@@ -28,8 +28,7 @@ func (a *ActionNetwork) Name() string { return "Action Network" }
 const actionPublicBettingURL = "https://api.actionnetwork.com/web/v1/scoreboard/publicbetting/nfl"
 
 func (a *ActionNetwork) Collect(ctx context.Context) ([]models.GameSplits, error) {
-	_ = ctx
-	body, _, err := a.client.Get(actionPublicBettingURL)
+	body, _, err := a.client.Get(ctx, actionPublicBettingURL)
 	if err != nil {
 		return nil, err
 	}

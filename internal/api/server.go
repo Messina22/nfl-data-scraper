@@ -81,23 +81,31 @@ func (s *Server) loop(ctx context.Context) {
 }
 
 func (s *Server) Refresh(ctx context.Context) {
-	s.mu.Lock()
-	if s.collecting {
-		s.mu.Unlock()
+	if !s.beginCollect() {
 		return
 	}
-	s.collecting = true
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		s.collecting = false
-		s.mu.Unlock()
-	}()
+	defer s.endCollect()
 
 	snap := collect.Run(ctx, nil)
-	if err := s.Store.Save(snap); err != nil {
+	if err := s.Store.MergeSave(snap); err != nil {
 		log.Printf("save snapshot: %v", err)
 	}
+}
+
+func (s *Server) beginCollect() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.collecting {
+		return false
+	}
+	s.collecting = true
+	return true
+}
+
+func (s *Server) endCollect() {
+	s.mu.Lock()
+	s.collecting = false
+	s.mu.Unlock()
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -114,11 +122,22 @@ func (s *Server) handleSources(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	go s.Refresh(context.Background())
+	if !s.beginCollect() {
+		w.WriteHeader(http.StatusConflict)
+		writeJSON(w, map[string]any{"status": "already_running"})
+		return
+	}
+	go func() {
+		defer s.endCollect()
+		snap := collect.Run(context.Background(), nil)
+		if err := s.Store.MergeSave(snap); err != nil {
+			log.Printf("save snapshot: %v", err)
+		}
+	}()
 	writeJSON(w, map[string]any{"status": "refresh started"})
 }
 

@@ -221,7 +221,12 @@
     refreshBtn.textContent = "Refreshing…";
     const previous = snapshot.collected_at;
     try {
-      await fetch("/api/refresh", { method: "POST" });
+      const res = await fetch("/api/refresh", { method: "POST" });
+      if (res.status === 409) {
+        // Another collect is already in flight; keep polling for its result.
+      } else if (!res.ok) {
+        throw new Error(`refresh failed (${res.status})`);
+      }
       // Poll until collected_at advances (or timeout).
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 1500));

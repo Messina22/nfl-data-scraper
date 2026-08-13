@@ -31,6 +31,18 @@ func (s *Store) Latest() models.Snapshot {
 func (s *Store) Save(snap models.Snapshot) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveLocked(snap)
+}
+
+// MergeSave merges incoming collection results with the in-memory snapshot,
+// keeping last-good games for sources that failed this tick, then persists.
+func (s *Store) MergeSave(incoming models.Snapshot) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.saveLocked(MergeSnapshots(s.snap, incoming))
+}
+
+func (s *Store) saveLocked(snap models.Snapshot) error {
 	s.snap = snap
 
 	if s.path == "" {
