@@ -1,33 +1,57 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"flag"
 	"log"
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	"nfl-data-scraper/internal/api"
+	"nfl-data-scraper/internal/collect"
+	"nfl-data-scraper/internal/store"
 )
 
 func main() {
-	// Make HTTP request
-	response, err := http.Get("https://www.nfl.com/scores/2017/reg1")
-	if err != nil {
+	addr := flag.String("addr", envOr("SPLITS_ADDR", "127.0.0.1:8080"), "HTTP listen address")
+	dataPath := flag.String("data", envOr("SPLITS_DATA", "data/splits.json"), "snapshot JSON path")
+	refresh := flag.Duration("refresh", 15*time.Minute, "auto-refresh interval (0 to disable)")
+	collectOnly := flag.Bool("collect-only", false, "collect once and write snapshot, then exit")
+	flag.Parse()
+
+	st := store.New(*dataPath)
+
+	if *collectOnly {
+		if err := st.Load(); err != nil {
+			log.Printf("load store: %v", err)
+		}
+		snap := collect.Run(context.Background(), nil)
+		if err := st.MergeSave(snap); err != nil {
+			log.Fatal(err)
+		}
+		merged := st.Latest()
+		log.Printf("wrote %d game reports from %d sources to %s", len(merged.Games), len(merged.Sources), *dataPath)
+		return
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	srv := &api.Server{
+		Store:           st,
+		Addr:            *addr,
+		RefreshInterval: *refresh,
+	}
+	if err := srv.Start(ctx); err != nil {
 		log.Fatal(err)
 	}
-	defer response.Body.Close()
-
-	// Create a goquery document from the HTTP response
-	document, err := goquery.NewDocumentFromReader(response.Body)
-	if err != nil {
-		log.Fatal("Error loading HTTP response body. ", err)
-	}
-
-	// Find and print all links
-	document.Find("a").Each(func(index int, element *goquery.Selection) {
-		href, exists := element.Attr("href")
-		if exists {
-			fmt.Println(href)
-		}
-	})
 }
 
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}

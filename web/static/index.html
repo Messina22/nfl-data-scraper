@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFL Splitboard — Betting Splits Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <header class="top">
+    <div class="brand-block">
+      <p class="brand">NFL Splitboard</p>
+      <p class="tagline">Reported bet &amp; money percentages across moneyline, spread, and totals.</p>
+    </div>
+    <div class="controls">
+      <label class="control">
+        <span>Window</span>
+        <select id="windowFilter">
+          <option value="all">All scheduled</option>
+          <option value="7">Next 7 days</option>
+          <option value="14">Next 14 days</option>
+          <option value="30">Next 30 days</option>
+        </select>
+      </label>
+      <label class="control">
+        <span>Source</span>
+        <select id="sourceFilter">
+          <option value="all">All sources</option>
+        </select>
+      </label>
+      <button id="refreshBtn" type="button">Refresh data</button>
+    </div>
+  </header>
+
+  <section class="status-bar" id="statusBar">
+    <div class="status-meta" id="statusMeta">Loading splits…</div>
+    <div class="source-pills" id="sourcePills"></div>
+  </section>
+
+  <main id="board" class="board" aria-live="polite"></main>
+
+  <footer class="foot">
+    <p>
+      Splits are collected from publicly reported sources (VSiN sportsbook boards, Action Network, Covers consensus when available).
+      Percentages reflect each publisher’s sample — not a universal market truth.
+    </p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
