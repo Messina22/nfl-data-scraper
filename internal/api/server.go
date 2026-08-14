@@ -3,9 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -20,6 +21,9 @@ type Server struct {
 	Addr            string
 	RefreshInterval time.Duration
 
+	// Dev serves assets from disk and enables live reload. Never set in production.
+	Dev bool
+
 	mu         sync.Mutex
 	collecting bool
 }
@@ -31,17 +35,22 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/sources", s.handleSources)
 	mux.HandleFunc("/api/refresh", s.handleRefresh)
 
-	static, err := fs.Sub(web.StaticFS, "static")
+	assets, err := web.Assets(s.Dev)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mux.Handle("/", http.FileServer(http.FS(static)))
+	mux.Handle("/", http.FileServer(http.FS(assets)))
 	return mux
 }
 
 func (s *Server) Start(ctx context.Context) error {
 	if err := s.Store.Load(); err != nil {
 		log.Printf("load store: %v", err)
+	}
+	if s.Dev {
+		if _, err := os.Stat(filepath.Join(web.StaticDir, "index.html")); err != nil {
+			log.Printf("dev mode: cannot read %s/index.html — run from the repo root: %v", web.StaticDir, err)
+		}
 	}
 	if len(s.Store.Latest().Games) == 0 {
 		s.Refresh(ctx)
