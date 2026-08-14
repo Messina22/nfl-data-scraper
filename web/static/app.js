@@ -3,6 +3,7 @@
   const statusMeta = document.getElementById("statusMeta");
   const sourcePills = document.getElementById("sourcePills");
   const sourceFilter = document.getElementById("sourceFilter");
+  const leagueFilter = document.getElementById("leagueFilter");
   const windowFilter = document.getElementById("windowFilter");
   const refreshBtn = document.getElementById("refreshBtn");
 
@@ -98,25 +99,40 @@
     return (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
-  function teamAbbr(abbr, name) {
+  function isNflLeague(league) {
+    const x = (league || "").toLowerCase();
+    return !x || x === "nfl" || x === "nfl preseason";
+  }
+
+  function groupingLeague(league) {
+    if (isNflLeague(league)) return "nfl";
+    return (league || "").toLowerCase();
+  }
+
+  function teamAbbr(abbr, name, league) {
     // Prefer a known abbr, but fall through to the display name when the
     // publisher uses an ambiguous code (e.g. Action Network "LA" for Rams).
-    if (abbr) {
-      const fromAbbr = NFL_TEAM_ABBR[normalizeTeamKey(abbr)];
-      if (fromAbbr) return fromAbbr;
+    // Only apply the NFL alias map to NFL (or untagged) reports so MLB/NBA
+    // teams like CLE / DET / SEA do not collapse onto Browns / Lions / Seahawks.
+    if (isNflLeague(league)) {
+      if (abbr) {
+        const fromAbbr = NFL_TEAM_ABBR[normalizeTeamKey(abbr)];
+        if (fromAbbr) return fromAbbr;
+      }
+      const fromName = NFL_TEAM_ABBR[normalizeTeamKey(name)];
+      if (fromName) return fromName;
     }
-    const fromName = NFL_TEAM_ABBR[normalizeTeamKey(name)];
-    if (fromName) return fromName;
     if (abbr) return String(abbr).toUpperCase();
     // Never drop a report: fall back to normalized display name.
     return normalizeTeamKey(name) || "unk";
   }
 
   function contestKey(g) {
+    const league = groupingLeague(g.league);
     const day = g.start_time ? g.start_time.slice(0, 10) : "na";
-    const away = teamAbbr(g.away_abbr, g.away_team);
-    const home = teamAbbr(g.home_abbr, g.home_team);
-    return `${day}|${away}|${home}`;
+    const away = teamAbbr(g.away_abbr, g.away_team, g.league);
+    const home = teamAbbr(g.home_abbr, g.home_team, g.league);
+    return `${league}|${day}|${away}|${home}`;
   }
 
   function preferDisplayName(current, next) {
@@ -135,6 +151,7 @@
           key,
           away: g.away_team,
           home: g.home_team,
+          league: g.league || "",
           start: g.start_time,
           reports: [],
         };
@@ -144,6 +161,7 @@
       found.away = preferDisplayName(found.away, g.away_team);
       found.home = preferDisplayName(found.home, g.home_team);
       if (!found.start && g.start_time) found.start = g.start_time;
+      if (!found.league && g.league) found.league = g.league;
     }
     const groups = [...byKey.values()];
     for (const grp of groups) {
@@ -244,9 +262,13 @@
 
   function render() {
     const source = sourceFilter.value;
+    const league = leagueFilter.value;
     const days = windowFilter.value;
     let games = snapshot.games || [];
     if (source !== "all") games = games.filter((g) => g.source_id === source);
+    if (league !== "all") {
+      games = games.filter((g) => groupingLeague(g.league) === groupingLeague(league));
+    }
     games = games.filter((g) => inWindow(g.start_time, days));
 
     const groups = groupGames(games);
@@ -292,7 +314,7 @@
           <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
               <h2 class="matchup-title">${escapeHtml(grp.away)} <span style="opacity:.45">@</span> ${escapeHtml(grp.home)}</h2>
-              <div class="matchup-meta">${escapeHtml(formatWhen(grp.start))}</div>
+              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
           </section>`;
@@ -318,10 +340,33 @@
     }
   }
 
+  function fillLeagueOptions() {
+    const current = leagueFilter.value;
+    const seen = new Map();
+    for (const g of snapshot.games || []) {
+      let name = (g.league || "").trim();
+      if (!name) continue;
+      if (isNflLeague(name)) name = "NFL";
+      const key = groupingLeague(name);
+      if (!seen.has(key)) seen.set(key, name);
+    }
+    const opts = [`<option value="all">All sports</option>`];
+    [...seen.values()]
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((name) => {
+        opts.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+      });
+    leagueFilter.innerHTML = opts.join("");
+    if ([...leagueFilter.options].some((o) => o.value === current)) {
+      leagueFilter.value = current;
+    }
+  }
+
   async function load() {
     const res = await fetch("/api/splits");
     snapshot = await res.json();
     fillSourceOptions();
+    fillLeagueOptions();
     render();
   }
 
@@ -349,6 +394,7 @@
   }
 
   sourceFilter.addEventListener("change", render);
+  leagueFilter.addEventListener("change", render);
   windowFilter.addEventListener("change", render);
   refreshBtn.addEventListener("click", refresh);
   load().catch((err) => {

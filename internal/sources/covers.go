@@ -73,6 +73,7 @@ func parseCoversGameBox(s *goquery.Selection, now time.Time, pageURL, id, name s
 		SourceID:   id,
 		SourceName: name,
 		Book:       "Covers Contest Consensus",
+		League:     "NFL",
 		AwayTeam:   away,
 		HomeTeam:   home,
 		FetchedAt:  now,

@@ -27,6 +27,12 @@
         </select>
       </label>
       <label class="control">
+        <span>Sport</span>
+        <select id="leagueFilter">
+          <option value="all">All sports</option>
+        </select>
+      </label>
+      <label class="control">
         <span>Source</span>
         <select id="sourceFilter">
           <option value="all">All sources</option>
@@ -45,7 +51,7 @@
 
   <footer class="foot">
     <p>
-      Splits are collected from publicly reported sources (VSiN sportsbook boards, Action Network, Covers consensus when available).
+      Splits are collected from publicly reported sources (DraftKings Network, VSiN sportsbook boards, Action Network, Covers consensus when available).
       Set <code>ACTION_NETWORK_COOKIE</code> to the JWT from the browser <code>authorization</code> header to unlock Action Network PRO money % and projection leans.
       Percentages reflect each publisher’s sample — not a universal market truth.
     </p>

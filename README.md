@@ -1,11 +1,11 @@
 # NFL Splitboard
 
-Collect and display **NFL betting splits** — percentage of **bets** and **money (handle)** on moneyline, spread, and over/under — from multiple publicly reported sources.
+Collect and display **betting splits** — percentage of **bets** and **money (handle)** on moneyline, spread, and over/under — from multiple publicly reported sources. NFL remains covered by VSiN, Action Network, and Covers; **DraftKings Network** adds first-party splits across every sport on their board (NFL, MLB, NBA, NHL, college, soccer, and more).
 
 ## Features
 
 - Multi-source collectors with a shared `Source` interface
-- Dashboard at `/` grouping the same matchup across sources
+- Dashboard at `/` grouping the same matchup across sources, with **sport** and source filters
 - JSON API at `/api/splits` (plus `/api/sources`, `/api/refresh`, `/api/health`)
 - Snapshot persistence to `data/splits.json` (per-source merge keeps last-good data when a source fails)
 - Periodic refresh (default every 15 minutes)
@@ -15,9 +15,10 @@ Collect and display **NFL betting splits** — percentage of **bets** and **mone
 
 | Source | What it reports |
 |--------|-----------------|
-| **VSiN (DraftKings)** | Spread / total / moneyline **handle %** and **bets %** |
-| **VSiN (Circa)** | Same markets from Circa’s reported board |
-| **Action Network** | Public betting API (`bet %` / `money %`); with PRO cookie also attaches `pro_insights` (lean / grade / edge) from game projections |
+| **DraftKings Network** | First-party Sportsbook **handle %** and **bets %** for spread / total / moneyline, collected for every sport listed on [their splits board](https://dknetwork.draftkings.com/draftkings-sportsbook-betting-splits/) (not MLB-only) |
+| **VSiN (DraftKings)** | NFL spread / total / moneyline **handle %** and **bets %** |
+| **VSiN (Circa)** | Same NFL markets from Circa’s reported board |
+| **Action Network** | NFL public betting API (`bet %` / `money %`); with PRO cookie also attaches `pro_insights` (lean / grade / edge) from game projections |
 | **Covers Consensus** | Contest consensus picks when Covers publishes NFL matchup rows |
 
 Additional sources can be added under `internal/sources/` and registered in `registry.go`.

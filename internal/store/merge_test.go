@@ -91,3 +91,45 @@ func TestMergeSnapshotsReplacesOnRecovery(t *testing.T) {
 		t.Fatalf("expected OK after recovery")
 	}
 }
+
+func TestMergeSnapshotsPartialSourceKeepsOtherLeagues(t *testing.T) {
+	prev := models.Snapshot{
+		Sources: []models.SourceStatus{
+			{ID: "dk-network", Name: "DraftKings Network", OK: true, Games: 2},
+		},
+		Games: []models.GameSplits{
+			{SourceID: "dk-network", League: "MLB", AwayTeam: "OldMLBAway", HomeTeam: "OldMLBHome"},
+			{SourceID: "dk-network", League: "NFL", AwayTeam: "OldNFLAway", HomeTeam: "OldNFLHome"},
+		},
+	}
+	incoming := models.Snapshot{
+		CollectedAt: time.Date(2026, 8, 14, 5, 0, 0, 0, time.UTC),
+		Sources: []models.SourceStatus{
+			{ID: "dk-network", Name: "DraftKings Network", OK: false, Error: "NFL: 403", Games: 1},
+		},
+		Games: []models.GameSplits{
+			{SourceID: "dk-network", League: "NFL", AwayTeam: "NewNFLAway", HomeTeam: "NewNFLHome"},
+		},
+	}
+
+	got := MergeSnapshots(prev, incoming)
+	if len(got.Games) != 2 {
+		t.Fatalf("games = %d, want 2 (new NFL + last-good MLB)", len(got.Games))
+	}
+	byLeague := map[string]models.GameSplits{}
+	for _, g := range got.Games {
+		byLeague[g.League] = g
+	}
+	if byLeague["MLB"].AwayTeam != "OldMLBAway" {
+		t.Fatalf("MLB not retained: %+v", byLeague["MLB"])
+	}
+	if byLeague["NFL"].AwayTeam != "NewNFLAway" {
+		t.Fatalf("NFL not replaced: %+v", byLeague["NFL"])
+	}
+	if got.Sources[0].OK || got.Sources[0].Games != 2 {
+		t.Fatalf("status = %+v, want OK=false Games=2", got.Sources[0])
+	}
+	if !strings.Contains(got.Sources[0].Error, "retaining last good data") {
+		t.Fatalf("error should note retention: %q", got.Sources[0].Error)
+	}
+}
