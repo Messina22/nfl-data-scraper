@@ -30,42 +30,113 @@
     return n > 0 ? `+${n}` : `${n}`;
   }
 
-  function matchupKey(g) {
-    const away = (g.away_abbr || g.away_team || "").toLowerCase();
-    const home = (g.home_abbr || g.home_team || "").toLowerCase();
-    const day = g.start_time ? g.start_time.slice(0, 10) : "na";
-    return `${day}|${away}|${home}`;
-  }
+  // Canonical NFL abbrs plus common publisher short forms → abbr.
+  const NFL_TEAM_ABBR = (() => {
+    const teams = {
+      ARI: ["Arizona Cardinals", "Cardinals", "ARI"],
+      ATL: ["Atlanta Falcons", "Falcons", "ATL"],
+      BAL: ["Baltimore Ravens", "Ravens", "BAL"],
+      BUF: ["Buffalo Bills", "Bills", "BUF"],
+      CAR: ["Carolina Panthers", "Panthers", "CAR"],
+      CHI: ["Chicago Bears", "Bears", "CHI"],
+      CIN: ["Cincinnati Bengals", "Bengals", "CIN"],
+      CLE: ["Cleveland Browns", "Browns", "CLE"],
+      DAL: ["Dallas Cowboys", "Cowboys", "DAL"],
+      DEN: ["Denver Broncos", "Broncos", "DEN"],
+      DET: ["Detroit Lions", "Lions", "DET"],
+      GB: ["Green Bay Packers", "Packers", "GB", "GNB"],
+      HOU: ["Houston Texans", "Texans", "HOU"],
+      IND: ["Indianapolis Colts", "Colts", "IND"],
+      JAX: ["Jacksonville Jaguars", "Jaguars", "JAX", "JAC"],
+      KC: ["Kansas City Chiefs", "Chiefs", "KC", "KAN"],
+      LV: ["Las Vegas Raiders", "Raiders", "LV", "LVR", "Oakland Raiders"],
+      LAC: ["Los Angeles Chargers", "LA Chargers", "Chargers", "LAC"],
+      LAR: ["Los Angeles Rams", "LA Rams", "Rams", "LAR"],
+      MIA: ["Miami Dolphins", "Dolphins", "MIA"],
+      MIN: ["Minnesota Vikings", "Vikings", "MIN"],
+      NE: ["New England Patriots", "Patriots", "NE", "NWE"],
+      NO: ["New Orleans Saints", "Saints", "NO", "NOR"],
+      NYG: ["New York Giants", "NY Giants", "Giants", "NYG"],
+      NYJ: ["New York Jets", "NY Jets", "Jets", "NYJ"],
+      PHI: ["Philadelphia Eagles", "Eagles", "PHI"],
+      PIT: ["Pittsburgh Steelers", "Steelers", "PIT"],
+      SF: ["San Francisco 49ers", "49ers", "SF", "SFO"],
+      SEA: ["Seattle Seahawks", "Seahawks", "SEA"],
+      TB: ["Tampa Bay Buccaneers", "Buccaneers", "Bucs", "TB", "TAM"],
+      TEN: ["Tennessee Titans", "Titans", "TEN"],
+      WAS: [
+        "Washington Commanders",
+        "Wash Commanders",
+        "Commanders",
+        "Washington",
+        "WAS",
+        "WSH",
+      ],
+    };
+    const map = Object.create(null);
+    for (const [abbr, aliases] of Object.entries(teams)) {
+      for (const alias of aliases) {
+        map[normalizeTeamKey(alias)] = abbr;
+      }
+      map[normalizeTeamKey(abbr)] = abbr;
+    }
+    return map;
+  })();
 
-  function normalizeTeam(name) {
+  function normalizeTeamKey(name) {
     return (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
-  function teamsMatch(a, b) {
-    const x = normalizeTeam(a);
-    const y = normalizeTeam(b);
-    if (!x || !y) return false;
-    return x === y || x.includes(y) || y.includes(x);
+  function teamAbbr(abbr, name) {
+    // Prefer a known abbr, but fall through to the display name when the
+    // publisher uses an ambiguous code (e.g. Action Network "LA" for Rams).
+    if (abbr) {
+      const fromAbbr = NFL_TEAM_ABBR[normalizeTeamKey(abbr)];
+      if (fromAbbr) return fromAbbr;
+    }
+    const fromName = NFL_TEAM_ABBR[normalizeTeamKey(name)];
+    if (fromName) return fromName;
+    if (abbr) return String(abbr).toUpperCase();
+    // Never drop a report: fall back to normalized display name.
+    return normalizeTeamKey(name) || "unk";
+  }
+
+  function contestKey(g) {
+    const day = g.start_time ? g.start_time.slice(0, 10) : "na";
+    const away = teamAbbr(g.away_abbr, g.away_team);
+    const home = teamAbbr(g.home_abbr, g.home_team);
+    return `${day}|${away}|${home}`;
+  }
+
+  function preferDisplayName(current, next) {
+    if (!current) return next || "";
+    if (!next) return current;
+    return next.length > current.length ? next : current;
   }
 
   function groupGames(games) {
-    const groups = [];
+    const byKey = new Map();
     for (const g of games) {
-      let found = groups.find((grp) => {
-        return teamsMatch(grp.away, g.away_team) && teamsMatch(grp.home, g.home_team);
-      });
+      const key = contestKey(g);
+      let found = byKey.get(key);
       if (!found) {
         found = {
-          key: matchupKey(g),
+          key,
           away: g.away_team,
           home: g.home_team,
           start: g.start_time,
           reports: [],
         };
-        groups.push(found);
+        byKey.set(key, found);
       }
       found.reports.push(g);
+      found.away = preferDisplayName(found.away, g.away_team);
+      found.home = preferDisplayName(found.home, g.home_team);
       if (!found.start && g.start_time) found.start = g.start_time;
+    }
+    const groups = [...byKey.values()];
+    for (const grp of groups) {
+      grp.reports.sort((a, b) => String(a.source_id || "").localeCompare(String(b.source_id || "")));
     }
     groups.sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
     return groups;
