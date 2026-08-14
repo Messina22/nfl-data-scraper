@@ -17,20 +17,20 @@ const (
 type Side string
 
 const (
-	SideAway Side = "away"
-	SideHome Side = "home"
-	SideOver Side = "over"
+	SideAway  Side = "away"
+	SideHome  Side = "home"
+	SideOver  Side = "over"
 	SideUnder Side = "under"
 )
 
 // SideSplit is the bet/money (handle) share for one outcome.
 type SideSplit struct {
-	Label      string   `json:"label"`
-	Side       Side     `json:"side"`
-	Line       *float64 `json:"line,omitempty"`
-	Odds       *int     `json:"odds,omitempty"` // American odds when available
-	BetPct     *float64 `json:"bet_pct,omitempty"`
-	MoneyPct   *float64 `json:"money_pct,omitempty"` // also called handle %
+	Label    string   `json:"label"`
+	Side     Side     `json:"side"`
+	Line     *float64 `json:"line,omitempty"`
+	Odds     *int     `json:"odds,omitempty"` // American odds when available
+	BetPct   *float64 `json:"bet_pct,omitempty"`
+	MoneyPct *float64 `json:"money_pct,omitempty"` // also called handle %
 }
 
 // MarketSplit is the full reported split for one market on a game.
@@ -60,6 +60,7 @@ type GameSplits struct {
 	HomeTeam    string        `json:"home_team"`
 	AwayAbbr    string        `json:"away_abbr,omitempty"`
 	HomeAbbr    string        `json:"home_abbr,omitempty"`
+	League      string        `json:"league,omitempty"`
 	Season      int           `json:"season,omitempty"`
 	Week        int           `json:"week,omitempty"`
 	SeasonType  string        `json:"season_type,omitempty"`

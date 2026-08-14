@@ -80,6 +80,7 @@ func (a *ActionNetwork) Collect(ctx context.Context) ([]models.GameSplits, error
 			SourceID:    a.ID(),
 			SourceName:  a.Name(),
 			Book:        "Action Network Consensus",
+			League:      "NFL",
 			ExternalID:  fmt.Sprintf("%d", g.ID),
 			AwayTeam:    away.FullName,
 			HomeTeam:    home.FullName,

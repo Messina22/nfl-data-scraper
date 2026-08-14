@@ -86,6 +86,7 @@ func (v *VSiN) Collect(ctx context.Context) ([]models.GameSplits, error) {
 				SourceID:   v.ID(),
 				SourceName: v.Name(),
 				Book:       v.BookName,
+				League:     "NFL",
 				ExternalID: gameCode,
 				AwayTeam:   away.team,
 				HomeTeam:   home.team,

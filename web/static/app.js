@@ -3,6 +3,7 @@
   const statusMeta = document.getElementById("statusMeta");
   const sourcePills = document.getElementById("sourcePills");
   const sourceFilter = document.getElementById("sourceFilter");
+  const leagueFilter = document.getElementById("leagueFilter");
   const windowFilter = document.getElementById("windowFilter");
   const refreshBtn = document.getElementById("refreshBtn");
 
@@ -31,10 +32,11 @@
   }
 
   function matchupKey(g) {
+    const league = (g.league || "").toLowerCase();
     const away = (g.away_abbr || g.away_team || "").toLowerCase();
     const home = (g.home_abbr || g.home_team || "").toLowerCase();
     const day = g.start_time ? g.start_time.slice(0, 10) : "na";
-    return `${day}|${away}|${home}`;
+    return `${league}|${day}|${away}|${home}`;
   }
 
   function normalizeTeam(name) {
@@ -48,17 +50,29 @@
     return x === y || x.includes(y) || y.includes(x);
   }
 
+  function leaguesMatch(a, b) {
+    const x = (a || "").toLowerCase();
+    const y = (b || "").toLowerCase();
+    if (!x || !y) return true;
+    return x === y;
+  }
+
   function groupGames(games) {
     const groups = [];
     for (const g of games) {
       let found = groups.find((grp) => {
-        return teamsMatch(grp.away, g.away_team) && teamsMatch(grp.home, g.home_team);
+        return (
+          leaguesMatch(grp.league, g.league) &&
+          teamsMatch(grp.away, g.away_team) &&
+          teamsMatch(grp.home, g.home_team)
+        );
       });
       if (!found) {
         found = {
           key: matchupKey(g),
           away: g.away_team,
           home: g.home_team,
+          league: g.league || "",
           start: g.start_time,
           reports: [],
         };
@@ -66,6 +80,7 @@
       }
       found.reports.push(g);
       if (!found.start && g.start_time) found.start = g.start_time;
+      if (!found.league && g.league) found.league = g.league;
     }
     groups.sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
     return groups;
@@ -162,9 +177,13 @@
 
   function render() {
     const source = sourceFilter.value;
+    const league = leagueFilter.value;
     const days = windowFilter.value;
     let games = snapshot.games || [];
     if (source !== "all") games = games.filter((g) => g.source_id === source);
+    if (league !== "all") {
+      games = games.filter((g) => (g.league || "").toLowerCase() === league.toLowerCase());
+    }
     games = games.filter((g) => inWindow(g.start_time, days));
 
     const groups = groupGames(games);
@@ -210,7 +229,7 @@
           <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
               <h2 class="matchup-title">${escapeHtml(grp.away)} <span style="opacity:.45">@</span> ${escapeHtml(grp.home)}</h2>
-              <div class="matchup-meta">${escapeHtml(formatWhen(grp.start))}</div>
+              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
           </section>`;
@@ -236,10 +255,32 @@
     }
   }
 
+  function fillLeagueOptions() {
+    const current = leagueFilter.value;
+    const seen = new Map();
+    for (const g of snapshot.games || []) {
+      const name = (g.league || "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!seen.has(key)) seen.set(key, name);
+    }
+    const opts = [`<option value="all">All sports</option>`];
+    [...seen.values()]
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((name) => {
+        opts.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+      });
+    leagueFilter.innerHTML = opts.join("");
+    if ([...leagueFilter.options].some((o) => o.value === current)) {
+      leagueFilter.value = current;
+    }
+  }
+
   async function load() {
     const res = await fetch("/api/splits");
     snapshot = await res.json();
     fillSourceOptions();
+    fillLeagueOptions();
     render();
   }
 
@@ -267,6 +308,7 @@
   }
 
   sourceFilter.addEventListener("change", render);
+  leagueFilter.addEventListener("change", render);
   windowFilter.addEventListener("change", render);
   refreshBtn.addEventListener("click", refresh);
   load().catch((err) => {
