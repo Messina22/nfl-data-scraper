@@ -47,6 +47,12 @@ type dkSport struct {
 	Alt   string
 }
 
+type dkSportResult struct {
+	games []models.GameSplits
+	err   error
+	label string
+}
+
 func (d *DKNetwork) Collect(ctx context.Context) ([]models.GameSplits, error) {
 	sports, err := d.discoverSports(ctx)
 	if err != nil {
@@ -56,15 +62,9 @@ func (d *DKNetwork) Collect(ctx context.Context) ([]models.GameSplits, error) {
 		sports = dkNetworkFallbackSports()
 	}
 
-	type sportResult struct {
-		games []models.GameSplits
-		err   error
-		label string
-	}
-
 	sem := make(chan struct{}, dkNetworkWorkers)
 	var wg sync.WaitGroup
-	ch := make(chan sportResult, len(sports))
+	ch := make(chan dkSportResult, len(sports))
 	for _, sp := range sports {
 		wg.Add(1)
 		go func(sp dkSport) {
@@ -72,35 +72,45 @@ func (d *DKNetwork) Collect(ctx context.Context) ([]models.GameSplits, error) {
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
-				ch <- sportResult{err: ctx.Err(), label: sp.Label}
+				ch <- dkSportResult{err: ctx.Err(), label: sp.Label}
 				return
 			}
 			defer func() { <-sem }()
 			games, err := d.collectSport(ctx, sp)
-			ch <- sportResult{games: games, err: err, label: sp.Label}
+			ch <- dkSportResult{games: games, err: err, label: sp.Label}
 		}(sp)
 	}
 	wg.Wait()
 	close(ch)
 
+	var results []dkSportResult
+	for r := range ch {
+		results = append(results, r)
+	}
+	return combineDKNetworkResults(results)
+}
+
+func combineDKNetworkResults(results []dkSportResult) ([]models.GameSplits, error) {
 	var out []models.GameSplits
 	var errs []string
-	for r := range ch {
-		if r.err != nil {
-			errs = append(errs, r.label+": "+r.err.Error())
-			continue
-		}
-		if len(r.games) == 0 {
-			continue
-		}
+	for _, r := range results {
 		out = append(out, r.games...)
+		if r.err != nil {
+			label := r.label
+			if label == "" {
+				label = "sport"
+			}
+			errs = append(errs, label+": "+r.err.Error())
+		}
 	}
-
 	if len(out) == 0 {
 		if len(errs) > 0 {
 			return nil, fmt.Errorf("no DraftKings Network splits found (%s)", strings.Join(errs, "; "))
 		}
 		return nil, fmt.Errorf("no DraftKings Network splits rows found (board may be empty or markup changed)")
+	}
+	if len(errs) > 0 {
+		return out, fmt.Errorf("partial DraftKings Network collect (%s)", strings.Join(errs, "; "))
 	}
 	return out, nil
 }
@@ -130,6 +140,9 @@ func (d *DKNetwork) collectSport(ctx context.Context, sp dkSport) ([]models.Game
 		altGames, altErr := d.collectSportValue(ctx, sp, sp.Alt)
 		if altErr == nil && len(altGames) > 0 {
 			return altGames, nil
+		}
+		if len(altGames) > len(games) {
+			return altGames, altErr
 		}
 		if err == nil {
 			err = altErr

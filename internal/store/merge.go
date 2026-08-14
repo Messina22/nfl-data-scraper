@@ -9,6 +9,8 @@ import (
 
 // MergeSnapshots keeps last-good games per source when a source fails.
 // Successful sources (OK==true) replace that source's games with the new batch.
+// Failed sources with incoming games replace only the leagues present in the
+// incoming batch and keep previous games for other leagues.
 // CollectedAt always comes from incoming so refresh clients can detect completion.
 func MergeSnapshots(prev, incoming models.Snapshot) models.Snapshot {
 	prevGames := map[string][]models.GameSplits{}
@@ -40,8 +42,11 @@ func MergeSnapshots(prev, incoming models.Snapshot) models.Snapshot {
 			out.Games = append(out.Games, games...)
 			continue
 		}
-		// Failed collect: retain previous games for this source when present.
+		fresh := incomingGames[st.ID]
 		kept := prevGames[st.ID]
+		if len(fresh) > 0 {
+			kept = mergeSourceGamesByLeague(kept, fresh)
+		}
 		st.Games = len(kept)
 		if len(kept) > 0 && st.Error != "" {
 			st.Error = st.Error + "; retaining last good data"
@@ -84,5 +89,22 @@ func MergeSnapshots(prev, incoming models.Snapshot) models.Snapshot {
 		}
 		return ai.SourceID < aj.SourceID
 	})
+	return out
+}
+
+// mergeSourceGamesByLeague uses incoming games for leagues present in the new
+// batch and keeps previous games for every other league (including empty).
+func mergeSourceGamesByLeague(prev, incoming []models.GameSplits) []models.GameSplits {
+	incomingLeagues := map[string]bool{}
+	for _, g := range incoming {
+		incomingLeagues[g.League] = true
+	}
+	out := append([]models.GameSplits{}, incoming...)
+	for _, g := range prev {
+		if incomingLeagues[g.League] {
+			continue
+		}
+		out = append(out, g)
+	}
 	return out
 }

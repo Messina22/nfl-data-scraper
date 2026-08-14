@@ -93,6 +93,11 @@
     return !x || x === "nfl" || x === "nfl preseason";
   }
 
+  function groupingLeague(league) {
+    if (isNflLeague(league)) return "nfl";
+    return (league || "").toLowerCase();
+  }
+
   function teamAbbr(abbr, name, league) {
     // Prefer a known abbr, but fall through to the display name when the
     // publisher uses an ambiguous code (e.g. Action Network "LA" for Rams).
@@ -112,7 +117,7 @@
   }
 
   function contestKey(g) {
-    const league = (g.league || "").toLowerCase();
+    const league = groupingLeague(g.league);
     const day = g.start_time ? g.start_time.slice(0, 10) : "na";
     const away = teamAbbr(g.away_abbr, g.away_team, g.league);
     const home = teamAbbr(g.home_abbr, g.home_team, g.league);
@@ -251,7 +256,7 @@
     let games = snapshot.games || [];
     if (source !== "all") games = games.filter((g) => g.source_id === source);
     if (league !== "all") {
-      games = games.filter((g) => (g.league || "").toLowerCase() === league.toLowerCase());
+      games = games.filter((g) => groupingLeague(g.league) === groupingLeague(league));
     }
     games = games.filter((g) => inWindow(g.start_time, days));
 
@@ -328,9 +333,10 @@
     const current = leagueFilter.value;
     const seen = new Map();
     for (const g of snapshot.games || []) {
-      const name = (g.league || "").trim();
+      let name = (g.league || "").trim();
       if (!name) continue;
-      const key = name.toLowerCase();
+      if (isNflLeague(name)) name = "NFL";
+      const key = groupingLeague(name);
       if (!seen.has(key)) seen.set(key, name);
     }
     const opts = [`<option value="all">All sports</option>`];

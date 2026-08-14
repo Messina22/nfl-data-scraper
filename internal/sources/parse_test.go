@@ -2,6 +2,7 @@ package sources
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -513,4 +514,58 @@ func sideBy(sides []models.SideSplit, side models.Side) models.SideSplit {
 		}
 	}
 	return models.SideSplit{}
+}
+
+func TestCombineDKNetworkResultsKeepsGamesOnSportError(t *testing.T) {
+	mlb := models.GameSplits{SourceID: "dk-network", League: "MLB", AwayTeam: "A", HomeTeam: "B"}
+	nfl := models.GameSplits{SourceID: "dk-network", League: "NFL", AwayTeam: "C", HomeTeam: "D"}
+	got, err := combineDKNetworkResults([]dkSportResult{
+		{label: "MLB", games: []models.GameSplits{mlb}},
+		{label: "NFL", games: []models.GameSplits{nfl}, err: errors.New("page 2 failed")},
+	})
+	if err == nil {
+		t.Fatal("expected partial collect error")
+	}
+	if !strings.Contains(err.Error(), "NFL") {
+		t.Fatalf("error should mention NFL: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("games=%d, want MLB + paginated NFL", len(got))
+	}
+}
+
+func TestCombineDKNetworkResultsErrorsWhenAnySportFails(t *testing.T) {
+	got, err := combineDKNetworkResults([]dkSportResult{
+		{label: "MLB", games: []models.GameSplits{{League: "MLB", AwayTeam: "A", HomeTeam: "B"}}},
+		{label: "NBA", err: errors.New("403")},
+	})
+	if err == nil {
+		t.Fatal("expected error when a sport failed")
+	}
+	if len(got) != 1 || got[0].League != "MLB" {
+		t.Fatalf("should still return successful sports, got %+v", got)
+	}
+}
+
+func TestCombineDKNetworkResultsSuccessWhenSportsEmpty(t *testing.T) {
+	got, err := combineDKNetworkResults([]dkSportResult{
+		{label: "WNBA"},
+		{label: "NFL", games: []models.GameSplits{{League: "NFL", AwayTeam: "A", HomeTeam: "B"}}},
+	})
+	if err != nil {
+		t.Fatalf("empty off-season sports should not fail: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("games=%d", len(got))
+	}
+}
+
+func TestCombineDKNetworkResultsNoGames(t *testing.T) {
+	_, err := combineDKNetworkResults([]dkSportResult{
+		{label: "WNBA"},
+		{label: "UFL"},
+	})
+	if err == nil {
+		t.Fatal("expected error when every sport is empty")
+	}
 }
