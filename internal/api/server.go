@@ -24,6 +24,8 @@ type Server struct {
 	// Dev serves assets from disk and enables live reload. Never set in production.
 	Dev bool
 
+	bootID string
+
 	mu         sync.Mutex
 	collecting bool
 }
@@ -35,11 +37,23 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/sources", s.handleSources)
 	mux.HandleFunc("/api/refresh", s.handleRefresh)
 
+	if s.Dev {
+		if s.bootID == "" {
+			s.bootID = newBootID()
+		}
+		mux.HandleFunc("/api/livereload", s.handleLiveReload)
+		mux.HandleFunc("/__livereload.js", s.handleLiveReloadScript)
+	}
+
 	assets, err := web.Assets(s.Dev)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mux.Handle("/", http.FileServer(http.FS(assets)))
+	var files http.Handler = http.FileServer(http.FS(assets))
+	if s.Dev {
+		files = noCache(files)
+	}
+	mux.Handle("/", files)
 	return mux
 }
 
