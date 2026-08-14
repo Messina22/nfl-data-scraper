@@ -158,6 +158,16 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 }
 .pill.ok .dot { background: var(--ok); }
 
+.source-icon {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.source-label .source-icon { margin-right: 0.35rem; }
+
 .board {
   display: grid;
   gap: 1rem;

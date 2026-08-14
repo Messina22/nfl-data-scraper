@@ -30,6 +30,17 @@
     return n > 0 ? `+${n}` : `${n}`;
   }
 
+  const SOURCE_ICON = {
+    "action-network": "/img/sources/action-network.jpg",
+    "vsin-dk": "/img/sources/vsin.png",
+    "vsin-circa": "/img/sources/vsin.png",
+    "covers-consensus": "/img/sources/covers.ico",
+  };
+  function sourceIconHtml(sourceId) {
+    const src = SOURCE_ICON[sourceId];
+    return src ? `<img class="source-icon" src="${src}" alt="" />` : "";
+  }
+
   // Canonical NFL abbrs plus common publisher short forms → abbr.
   const NFL_TEAM_ABBR = (() => {
     const teams = {
@@ -243,7 +254,7 @@
       .map((s) => {
         const cls = s.ok ? "pill ok" : "pill";
         const detail = s.ok ? `${s.games} games` : "error";
-        return `<span class="${cls}" title="${escapeHtml(s.error || "")}"><span class="dot"></span>${escapeHtml(s.name)} · ${detail}</span>`;
+        return `<span class="${cls}" title="${escapeHtml(s.error || "")}"><span class="dot"></span>${sourceIconHtml(s.id)}${escapeHtml(s.name)} · ${detail}</span>`;
       })
       .join("");
 
@@ -266,7 +277,7 @@
             return `
               <div class="source-block">
                 <div class="source-label">
-                  <span>${escapeHtml(g.source_name)}${g.book ? ` · ${escapeHtml(g.book)}` : ""}</span>
+                  <span>${sourceIconHtml(g.source_id)}${escapeHtml(g.source_name)}${g.book ? ` · ${escapeHtml(g.book)}` : ""}</span>
                   <span>${g.num_bets != null ? `${g.num_bets.toLocaleString()} bets tracked` : ""}</span>
                 </div>
                 <div class="markets">
