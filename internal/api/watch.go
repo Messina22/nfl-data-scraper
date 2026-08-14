@@ -21,6 +21,7 @@ func dirFingerprint(root string) string {
 		if err != nil {
 			return nil
 		}
+		// Note: same-size writes within a single filesystem timestamp tick cannot be distinguished.
 		fmt.Fprintf(&sb, "%s:%d:%d\n", path, info.Size(), info.ModTime().UnixNano())
 		return nil
 	})
