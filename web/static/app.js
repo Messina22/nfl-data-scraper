@@ -88,13 +88,15 @@
   }
 
   function teamAbbr(abbr, name) {
+    // Prefer a known abbr, but fall through to the display name when the
+    // publisher uses an ambiguous code (e.g. Action Network "LA" for Rams).
     if (abbr) {
       const fromAbbr = NFL_TEAM_ABBR[normalizeTeamKey(abbr)];
       if (fromAbbr) return fromAbbr;
-      return String(abbr).toUpperCase();
     }
     const fromName = NFL_TEAM_ABBR[normalizeTeamKey(name)];
     if (fromName) return fromName;
+    if (abbr) return String(abbr).toUpperCase();
     // Never drop a report: fall back to normalized display name.
     return normalizeTeamKey(name) || "unk";
   }
