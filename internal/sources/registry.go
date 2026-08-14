@@ -2,6 +2,7 @@ package sources
 
 import (
 	"context"
+	"os"
 
 	"nfl-data-scraper/internal/models"
 )
@@ -18,7 +19,7 @@ func Registry() []Source {
 	return []Source{
 		NewVSiN("DK", "DraftKings"),
 		NewVSiN("CIRCA", "Circa"),
-		NewActionNetwork(),
+		NewActionNetwork(os.Getenv("ACTION_NETWORK_COOKIE")),
 		NewCoversConsensus(),
 	}
 }

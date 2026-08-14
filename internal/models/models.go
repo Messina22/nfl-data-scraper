@@ -39,24 +39,35 @@ type MarketSplit struct {
 	Sides  []SideSplit `json:"sides"`
 }
 
+// ProInsight is an optional Action PRO lean/edge for one market on a game.
+type ProInsight struct {
+	Market   Market   `json:"market"` // spread | moneyline | total
+	Side     Side     `json:"side"`   // away|home|over|under
+	Label    string   `json:"label"`
+	Grade    string   `json:"grade,omitempty"`
+	EdgePct  *float64 `json:"edge_pct,omitempty"`
+	ProjOdds *int     `json:"proj_odds,omitempty"` // model American odds when present
+}
+
 // GameSplits is one game's reported splits from a single source/book.
 type GameSplits struct {
-	SourceID   string         `json:"source_id"`
-	SourceName string         `json:"source_name"`
-	Book       string         `json:"book,omitempty"`
-	ExternalID string         `json:"external_id,omitempty"`
-	StartTime  *time.Time     `json:"start_time,omitempty"`
-	AwayTeam   string         `json:"away_team"`
-	HomeTeam   string         `json:"home_team"`
-	AwayAbbr   string         `json:"away_abbr,omitempty"`
-	HomeAbbr   string         `json:"home_abbr,omitempty"`
-	Season     int            `json:"season,omitempty"`
-	Week       int            `json:"week,omitempty"`
-	SeasonType string         `json:"season_type,omitempty"`
-	NumBets    *int           `json:"num_bets,omitempty"`
-	Markets    []MarketSplit  `json:"markets"`
-	FetchedAt  time.Time      `json:"fetched_at"`
-	URL        string         `json:"url,omitempty"`
+	SourceID    string        `json:"source_id"`
+	SourceName  string        `json:"source_name"`
+	Book        string        `json:"book,omitempty"`
+	ExternalID  string        `json:"external_id,omitempty"`
+	StartTime   *time.Time    `json:"start_time,omitempty"`
+	AwayTeam    string        `json:"away_team"`
+	HomeTeam    string        `json:"home_team"`
+	AwayAbbr    string        `json:"away_abbr,omitempty"`
+	HomeAbbr    string        `json:"home_abbr,omitempty"`
+	Season      int           `json:"season,omitempty"`
+	Week        int           `json:"week,omitempty"`
+	SeasonType  string        `json:"season_type,omitempty"`
+	NumBets     *int          `json:"num_bets,omitempty"`
+	Markets     []MarketSplit `json:"markets"`
+	ProInsights []ProInsight  `json:"pro_insights,omitempty"`
+	FetchedAt   time.Time     `json:"fetched_at"`
+	URL         string        `json:"url,omitempty"`
 }
 
 // SourceStatus reports what happened when a source was collected.

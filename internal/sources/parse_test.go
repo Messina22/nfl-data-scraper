@@ -1,11 +1,14 @@
 package sources
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+
+	"nfl-data-scraper/internal/models"
 )
 
 func TestParsePctAndLine(t *testing.T) {
@@ -83,3 +86,128 @@ func TestParseCoversGameBoxRejectsDuplicateSides(t *testing.T) {
 		t.Fatal("expected reject when sides do not sum near 100")
 	}
 }
+
+func TestActionProInsightsFromOdds(t *testing.T) {
+	away := actionTeam{FullName: "Green Bay Packers", Abbr: "GB"}
+	home := actionTeam{FullName: "Pittsburgh Steelers", Abbr: "PIT"}
+	spreadAway := -3.5
+	spreadHome := 3.5
+	awayEdge := 4.2
+	homeEdge := -1.1
+	over := 44.5
+	overEdge := 2.0
+	mlAway := -120
+	mlHome := 100
+	mlAwayEdge := 1.5
+	mlHomeEdge := -0.5
+	o := &actionOdds{
+		SpreadAway:          &spreadAway,
+		SpreadHome:          &spreadHome,
+		SpreadAwayProj:      &spreadAway,
+		SpreadHomeProj:      &spreadHome,
+		SpreadAwayEdgePct:   &awayEdge,
+		SpreadHomeEdgePct:   &homeEdge,
+		SpreadAwayEdgeGrade: "B+",
+		SpreadHomeEdgeGrade: "D",
+		Total:               &over,
+		OverProj:            &over,
+		UnderProj:           &over,
+		OverEdgePct:         &overEdge,
+		OverEdgeGrade:       "B",
+		MLAwayProj:          &mlAway,
+		MLHomeProj:          &mlHome,
+		MLAwayEdgePct:       &mlAwayEdge,
+		MLHomeEdgePct:       &mlHomeEdge,
+		MLAwayEdgeGrade:     "C+",
+		MLHomeEdgeGrade:     "C",
+	}
+
+	insights := actionProInsights(away, home, o)
+	if len(insights) != 3 {
+		t.Fatalf("expected 3 market insights, got %d: %+v", len(insights), insights)
+	}
+
+	byMarket := map[string]models.ProInsight{}
+	for _, in := range insights {
+		byMarket[string(in.Market)] = in
+	}
+	spread := byMarket["spread"]
+	if spread.Side != models.SideAway || spread.Grade != "B+" || spread.EdgePct == nil || *spread.EdgePct != 4.2 {
+		t.Fatalf("spread insight = %+v", spread)
+	}
+	if !strings.Contains(spread.Label, "Packers") {
+		t.Fatalf("spread label = %q", spread.Label)
+	}
+	total := byMarket["total"]
+	if total.Side != models.SideOver || total.Grade != "B" {
+		t.Fatalf("total insight = %+v", total)
+	}
+	ml := byMarket["moneyline"]
+	if ml.Side != models.SideAway || ml.ProjOdds == nil || *ml.ProjOdds != -120 {
+		t.Fatalf("moneyline insight = %+v", ml)
+	}
+}
+
+func TestActionProInsightsEmptyWithoutProFields(t *testing.T) {
+	away := actionTeam{FullName: "A", Abbr: "A"}
+	home := actionTeam{FullName: "B", Abbr: "B"}
+	o := &actionOdds{MLAway: intPtr(-110), MLHome: intPtr(-110)}
+	if got := actionProInsights(away, home, o); len(got) != 0 {
+		t.Fatalf("expected no insights, got %+v", got)
+	}
+}
+
+func TestActionMarketsFromV2Markets(t *testing.T) {
+	raw := []byte(`{
+	  "id": 1,
+	  "away_team_id": 147,
+	  "home_team_id": 132,
+	  "teams": [
+	    {"id": 132, "full_name": "Pittsburgh Steelers", "abbr": "PIT"},
+	    {"id": 147, "full_name": "Green Bay Packers", "abbr": "GB"}
+	  ],
+	  "markets": {
+	    "15": {
+	      "event": {
+	        "spread": [
+	          {"side":"away","value":-3,"odds":-105,"bet_info":{"tickets":{"percent":55},"money":{"percent":66}}},
+	          {"side":"home","value":3,"odds":-115,"bet_info":{"tickets":{"percent":45},"money":{"percent":34}}}
+	        ],
+	        "total": [
+	          {"side":"over","value":38.5,"odds":-110,"bet_info":{"tickets":{"percent":76},"money":{"percent":76}}},
+	          {"side":"under","value":38.5,"odds":-108,"bet_info":{"tickets":{"percent":24},"money":{"percent":24}}}
+	        ],
+	        "moneyline": [
+	          {"side":"away","value":0,"odds":-162,"bet_info":{"tickets":{"percent":55},"money":{"percent":55}}},
+	          {"side":"home","value":0,"odds":136,"bet_info":{"tickets":{"percent":45},"money":{"percent":45}}}
+	        ]
+	      }
+	    }
+	  }
+	}`)
+	var g actionGame
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	away, home := actionTeams(g)
+	markets := actionMarketsFromGame(away, home, g)
+	if len(markets) != 3 {
+		t.Fatalf("markets=%d", len(markets))
+	}
+	gs := models.GameSplits{Markets: markets}
+	if !hasAnySplit(gs) {
+		t.Fatal("expected splits from v2 markets")
+	}
+	spread := markets[0]
+	if spread.Sides[0].BetPct == nil || *spread.Sides[0].BetPct != 55 {
+		t.Fatalf("spread away bet=%v", spread.Sides[0].BetPct)
+	}
+	if spread.Sides[0].MoneyPct == nil || *spread.Sides[0].MoneyPct != 66 {
+		t.Fatalf("spread away money=%v", spread.Sides[0].MoneyPct)
+	}
+	if spread.Sides[0].Line == nil || *spread.Sides[0].Line != -3 {
+		t.Fatalf("spread away line=%v", spread.Sides[0].Line)
+	}
+}
+
+func intPtr(v int) *int { return &v }
