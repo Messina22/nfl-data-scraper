@@ -9,7 +9,7 @@ Collect and display **NFL betting splits** — percentage of **bets** and **mone
 - JSON API at `/api/splits` (plus `/api/sources`, `/api/refresh`, `/api/health`)
 - Snapshot persistence to `data/splits.json` (per-source merge keeps last-good data when a source fails)
 - Periodic refresh (default every 15 minutes)
-- Optional Action Network PRO session via `ACTION_NETWORK_COOKIE` for unlocked money % and projection grade/edge
+- Optional Action Network PRO session via `ACTION_NETWORK_COOKIE` (JWT from the `authorization` request header) for unlocked money % and projection grade/edge
 
 ## Sources currently wired
 
@@ -34,28 +34,30 @@ Bind address defaults to `127.0.0.1:8080`. Only use `-addr :8080` if you intenti
 
 Environment overrides: `SPLITS_ADDR`, `SPLITS_DATA`, `ACTION_NETWORK_COOKIE`.
 
-## Action Network PRO cookie
+## Action Network PRO auth
 
-Without a cookie, Action Network often returns empty bet/money fields (paywall / preseason). To unlock Pro public-betting splits and projection leans:
+Without a session token, Action Network often returns empty bet/money fields (paywall / preseason). To unlock Pro public-betting splits and projection leans:
 
 1. Log into Action Network PRO in your browser.
-2. Open DevTools → Network → pick any request to `api.actionnetwork.com`.
-3. Copy the full request `Cookie` header value.
+2. Open DevTools → Network → filter `publicbetting` → select the `api.actionnetwork.com` XHR.
+3. Under **Headers → Request Headers**, copy the `authorization` value (raw JWT, no `Bearer` prefix).  
+   Same value as cookie `AN_SESSION_TOKEN_V1` — the API does **not** use a Cookie header.
 4. Export it for the collector (never commit this value):
 
 ```bash
-export ACTION_NETWORK_COOKIE='paste-cookie-header-here'
+export ACTION_NETWORK_COOKIE='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 go run .
 ```
 
-When the cookie is set, the Action Network collector:
+When the token is set, the Action Network collector:
 
-- Sends it on `.../web/v1/scoreboard/publicbetting/nfl`
-- Also fetches `.../web/v1/scoreboard/gameprojections/nfl` and maps per-market lean / grade / edge into each game’s `pro_insights`
+- Sends it as the `Authorization` header on `.../web/v2/scoreboard/publicbetting/nfl?periods=event`
+- Parses v2 `markets.<book>.event.{spread,total,moneyline}[].bet_info.{tickets,money}.percent`
+- Also fetches `.../web/v2/scoreboard/gameprojections/nfl?periods=event` and maps lean / grade / edge into `pro_insights` when present
 - Soft-fails projections: if splits populate but projections fail, splits still return
 - Surfaces a clear “refresh ACTION_NETWORK_COOKIE” error on 401/403 or still-empty paywalled fields
 
-Cookies expire; refresh the env var when the source starts failing auth.
+Tokens expire; refresh the env var when the source starts failing auth.
 
 ## API
 

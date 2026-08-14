@@ -1,6 +1,7 @@
 package sources
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,59 @@ func TestActionProInsightsEmptyWithoutProFields(t *testing.T) {
 	o := &actionOdds{MLAway: intPtr(-110), MLHome: intPtr(-110)}
 	if got := actionProInsights(away, home, o); len(got) != 0 {
 		t.Fatalf("expected no insights, got %+v", got)
+	}
+}
+
+func TestActionMarketsFromV2Markets(t *testing.T) {
+	raw := []byte(`{
+	  "id": 1,
+	  "away_team_id": 147,
+	  "home_team_id": 132,
+	  "teams": [
+	    {"id": 132, "full_name": "Pittsburgh Steelers", "abbr": "PIT"},
+	    {"id": 147, "full_name": "Green Bay Packers", "abbr": "GB"}
+	  ],
+	  "markets": {
+	    "15": {
+	      "event": {
+	        "spread": [
+	          {"side":"away","value":-3,"odds":-105,"bet_info":{"tickets":{"percent":55},"money":{"percent":66}}},
+	          {"side":"home","value":3,"odds":-115,"bet_info":{"tickets":{"percent":45},"money":{"percent":34}}}
+	        ],
+	        "total": [
+	          {"side":"over","value":38.5,"odds":-110,"bet_info":{"tickets":{"percent":76},"money":{"percent":76}}},
+	          {"side":"under","value":38.5,"odds":-108,"bet_info":{"tickets":{"percent":24},"money":{"percent":24}}}
+	        ],
+	        "moneyline": [
+	          {"side":"away","value":0,"odds":-162,"bet_info":{"tickets":{"percent":55},"money":{"percent":55}}},
+	          {"side":"home","value":0,"odds":136,"bet_info":{"tickets":{"percent":45},"money":{"percent":45}}}
+	        ]
+	      }
+	    }
+	  }
+	}`)
+	var g actionGame
+	if err := json.Unmarshal(raw, &g); err != nil {
+		t.Fatal(err)
+	}
+	away, home := actionTeams(g)
+	markets := actionMarketsFromGame(away, home, g)
+	if len(markets) != 3 {
+		t.Fatalf("markets=%d", len(markets))
+	}
+	gs := models.GameSplits{Markets: markets}
+	if !hasAnySplit(gs) {
+		t.Fatal("expected splits from v2 markets")
+	}
+	spread := markets[0]
+	if spread.Sides[0].BetPct == nil || *spread.Sides[0].BetPct != 55 {
+		t.Fatalf("spread away bet=%v", spread.Sides[0].BetPct)
+	}
+	if spread.Sides[0].MoneyPct == nil || *spread.Sides[0].MoneyPct != 66 {
+		t.Fatalf("spread away money=%v", spread.Sides[0].MoneyPct)
+	}
+	if spread.Sides[0].Line == nil || *spread.Sides[0].Line != -3 {
+		t.Fatalf("spread away line=%v", spread.Sides[0].Line)
 	}
 }
 
