@@ -29,6 +29,7 @@
   }
 
   applyTheme(readTheme());
+  window.addEventListener("pageshow", () => applyTheme(readTheme()));
 
   let snapshot = { games: [], sources: [], collected_at: null };
 
