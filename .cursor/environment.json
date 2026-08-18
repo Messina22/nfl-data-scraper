@@ -7,5 +7,10 @@
       "command": "go run . -refresh 0"
     }
   ],
-  "ports": [8080]
+  "ports": [
+    {
+      "name": "splits-server",
+      "port": 8080
+    }
+  ]
 }
