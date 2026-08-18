@@ -27,7 +27,9 @@ not the bottleneck. The embed is.
   natively with no client code.
 - Poll modtimes rather than add `fsnotify` — three files at 300ms is free, and `go.mod`
   keeps its single direct dependency.
-- Dev routes are registered only when `Dev` is true. Production behavior is unchanged.
+- `/api/livereload` is registered only when `Dev` is true. `/__livereload.js` is always
+  registered: the client snippet in Dev, an empty no-op otherwise, so the dashboard
+  `<script>` tag does not 404.
 
 ## Components
 
@@ -38,24 +40,29 @@ func Assets(dev bool) (fs.FS, error)
 ```
 
 Returns `os.DirFS("web/static")` when `dev`, otherwise `fs.Sub(StaticFS, "static")`.
-`StaticFS` and the `//go:embed` directive are unchanged.
+`StaticFS` and the `//go:embed` directive are unchanged. In Dev, `Server` serves and
+watches the same directory (`staticDir`, defaulting to `web.StaticDir`).
 
 ### 2. `-dev` flag — `main.go`
 
-Adds `-dev` (default false), passed through as `api.Server.Dev`.
+Adds `-dev` (default false), passed through as `api.Server.Dev`. Missing
+`web/static/index.html` is a hard startup error so a wrong working directory cannot
+look like a running dashboard.
 
 ### 3. Live-reload endpoint — `internal/api/livereload.go` (new)
 
-Registered only when `Dev` is true:
+- `GET /api/livereload` — SSE stream, Dev only. Emits `retry: 500` and `hello` carrying
+  the process boot ID on connect, then `reload` whenever a file under the static
+  directory changes.
+- `GET /__livereload.js` — the client snippet in Dev; empty JavaScript otherwise.
 
-- `GET /api/livereload` — SSE stream. Emits `hello` carrying the process boot ID on
-  connect, then `reload` whenever a file under `web/static` changes.
-- `GET /__livereload.js` — the client snippet.
+The server generates a random boot ID on first SSE connect. A 300ms ticker walks the
+static directory recursively and stats each file (path, size, mtime); names starting
+with `.` or `_` are skipped, matching `//go:embed static/*`, and nested directories
+with those prefixes are not entered. If any included file's size, mtime, or the file
+set itself differs from the previous scan, connected clients receive `reload`.
 
-The server generates a random boot ID at process start. A 300ms ticker walks `web/static`
-recursively and stats each file; if any modtime, size, or the file set itself differs from
-the previous scan, connected clients receive `reload`. Walking recursively costs nothing at
-the current three files and means a future subdirectory works without a code change.
+Same-size writes within a single filesystem timestamp tick cannot be distinguished.
 
 ### 4. Client snippet
 
@@ -71,25 +78,29 @@ different one.
 reads the file fresh from disk. No rebuild, no restart, in-memory store preserved.
 
 **Go edit:** save → `wgo` rebuilds and restarts (~0.5s) → SSE connection drops →
-`EventSource` reconnects automatically → new process reports a different boot ID → client
-reloads.
+`EventSource` reconnects automatically (retry 500ms) → new process reports a different
+boot ID → client reloads.
 
 The boot-ID comparison is what lets one channel serve both halves: browser reconnection is
-native behavior, so a Go restart refreshes the page without any restart-specific code.
+native `EventSource` behavior. `retry: 500` is the one restart-specific protocol extra,
+so a `wgo` bounce is noticed in half a second instead of the browser's ~3s default.
 
 ## Production safety
 
-Without `-dev`: assets come from `go:embed`, neither dev route is registered, and the
-binary stays self-contained. The only trace is one 404 for `/__livereload.js`. Rewriting
-HTML in dev to inject the tag would avoid that 404 at the cost of response-rewriting
-middleware; the 404 was judged the better trade.
+Without `-dev`: assets come from `go:embed`, `/api/livereload` is not registered, and
+`/__livereload.js` is an empty no-op. The binary stays self-contained. Rewriting HTML
+in Dev to inject the tag would avoid the extra request at the cost of response-rewriting
+middleware; a 200 empty script was judged cleaner than a console 404.
 
 ## Testing
 
-- `Assets(false)` serves the embedded `index.html`.
-- The modtime poller reports a change after a file in a temp dir is written.
-- `Handler()` with `Dev: false` returns 404 for `/api/livereload` and `/__livereload.js` —
-  the regression that would leak live reload into production.
+- `Assets(false)` serves the embedded `index.html`, including the live-reload script tag.
+- The modtime poller reports a change after a file in a temp dir is written, including
+  same-size edits (via mtime) and deletions, and ignores `.`/`_`-prefixed names and dirs.
+- `Handler()` with `Dev: false` returns 404 for `/api/livereload` and 200 empty JS for
+  `/__livereload.js` — the regression that would leak live reload into production.
+- In Dev, disk assets are served with `Cache-Control: no-store` from the same directory
+  the poller watches.
 
 ## Dev command
 

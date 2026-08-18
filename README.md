@@ -44,8 +44,9 @@ and the browser reloads when it reconnects. Keep `-file '\.go$'`: without it `wg
 restarts on asset edits too, which defeats the no-restart path.
 
 `-dev` resolves `web/static` relative to the working directory, so run it from the
-repo root. Production builds are unaffected — assets stay embedded and the live-reload
-routes are not registered.
+repo root (a missing `web/static/index.html` is a startup error). Production builds
+are unaffected — assets stay embedded, `/api/livereload` is not registered, and
+`/__livereload.js` is an empty no-op so the dashboard script tag does not 404.
 
 Bind address defaults to `127.0.0.1:8080`. Only use `-addr :8080` if you intentionally want LAN/public access — `/api/refresh` has no auth and will trigger outbound scrapes.
 

@@ -20,6 +20,9 @@ func TestAssetsEmbeddedServesIndex(t *testing.T) {
 	if !strings.Contains(string(b), "NFL Splitboard") {
 		t.Error("embedded index.html missing brand text")
 	}
+	if !strings.Contains(string(b), `src="/__livereload.js"`) {
+		t.Error("embedded index.html missing live-reload script tag")
+	}
 }
 
 func TestDevAssetsReadsCurrentDiskContents(t *testing.T) {
