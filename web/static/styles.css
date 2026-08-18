@@ -51,7 +51,7 @@ body {
 .top {
   display: flex;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem 1.25rem;
   align-items: end;
   padding: 2.25rem 0 1.25rem;
   animation: rise 0.7s ease both;
@@ -76,19 +76,21 @@ body {
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem 0.55rem;
   align-items: end;
   justify-content: flex-end;
+  max-width: 42rem;
 }
 
 .control {
   display: grid;
-  gap: 0.3rem;
-  font-size: 0.75rem;
+  gap: 0.25rem;
+  font-size: 0.68rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-soft);
+  min-width: 0;
 }
 
 select, button {
@@ -97,8 +99,13 @@ select, button {
   border: 1px solid var(--line);
   background: var(--panel-solid);
   color: var(--ink);
-  padding: 0.65rem 1rem;
-  min-height: 2.6rem;
+  padding: 0.5rem 0.7rem;
+  min-height: 2.35rem;
+  font-size: 0.82rem;
+}
+
+.control select {
+  max-width: 9.6rem;
 }
 
 button {
@@ -281,6 +288,18 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   color: var(--ink-soft);
 }
 
+.source-label-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.source-label .gap-tag {
+  text-transform: uppercase;
+}
+
 .markets {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -356,21 +375,24 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 .side-top {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
   font-size: 0.86rem;
   font-weight: 600;
 }
 
 .side-top .team-chip {
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .side-meta {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }
 
 .gap-chip {

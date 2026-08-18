@@ -30,20 +30,34 @@
     return { gap, lean, bet, money };
   }
 
+  function reportGap(g) {
+    let maxGap = null;
+    let maxMarket = "";
+    for (const m of g.markets || []) {
+      for (const side of m.sides || []) {
+        const info = gapInfo(side);
+        if (!info) continue;
+        if (maxGap == null || info.gap > maxGap) {
+          maxGap = info.gap;
+          maxMarket = m.market || "";
+        }
+      }
+    }
+    return { maxGap, maxMarket };
+  }
+
   function attachGaps(groups) {
     for (const grp of groups) {
       let maxGap = null;
       let maxMarket = "";
       for (const g of grp.reports) {
-        for (const m of g.markets || []) {
-          for (const side of m.sides || []) {
-            const info = gapInfo(side);
-            if (!info) continue;
-            if (maxGap == null || info.gap > maxGap) {
-              maxGap = info.gap;
-              maxMarket = m.market || "";
-            }
-          }
+        const r = reportGap(g);
+        g.maxGap = r.maxGap;
+        g.maxGapMarket = r.maxMarket;
+        if (r.maxGap == null) continue;
+        if (maxGap == null || r.maxGap > maxGap) {
+          maxGap = r.maxGap;
+          maxMarket = r.maxMarket;
         }
       }
       grp.maxGap = maxGap;
@@ -350,6 +364,36 @@
       .replaceAll('"', "&quot;");
   }
 
+  function gapChipHtml(gap, market, extraClass) {
+    if (gap == null || gap < GAP_FLAG) return "";
+    const strong = gap >= GAP_STRONG ? " strong" : "";
+    const cls = extraClass ? ` ${extraClass}` : "";
+    return `<span class="gap-tag${strong}${cls}">Δ ${gap}${market ? ` · ${escapeHtml(market)}` : ""}</span>`;
+  }
+
+  function applyQuery() {
+    const p = new URLSearchParams(location.search);
+    const gaps = p.get("gaps");
+    const sort = p.get("sort");
+    if (gaps && [...gapFilter.options].some((o) => o.value === gaps)) {
+      gapFilter.value = gaps;
+    }
+    if (sort && [...sortFilter.options].some((o) => o.value === sort)) {
+      sortFilter.value = sort;
+    }
+  }
+
+  function syncQuery() {
+    const url = new URL(location.href);
+    if (gapFilter.value === "all") url.searchParams.delete("gaps");
+    else url.searchParams.set("gaps", gapFilter.value);
+    if (sortFilter.value === "kickoff") url.searchParams.delete("sort");
+    else url.searchParams.set("sort", sortFilter.value);
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const cur = `${location.pathname}${location.search}${location.hash}`;
+    if (next !== cur) history.replaceState(null, "", next);
+  }
+
   function formatWhen(iso) {
     if (!iso) return "Time TBD";
     const d = new Date(iso);
@@ -378,12 +422,14 @@
 
     let groups = groupGames(games);
     attachGaps(groups);
+    const inWindowCount = groups.length;
     const flaggedCount = groups.filter((g) => g.maxGap != null && g.maxGap >= GAP_FLAG).length;
     if (gapMin !== "all") {
       const min = Number(gapMin);
       groups = groups.filter((g) => g.maxGap != null && g.maxGap >= min);
     }
     sortGroups(groups, sortMode);
+    syncQuery();
 
     sourcePills.innerHTML = (snapshot.sources || [])
       .map((s) => {
@@ -396,7 +442,10 @@
     const collected = snapshot.collected_at
       ? new Date(snapshot.collected_at).toLocaleString()
       : "never";
-    statusMeta.textContent = `${groups.length} matchups · ${flaggedCount} with gaps ≥ ${GAP_FLAG} · ${games.length} source reports · collected ${collected}`;
+    const gapBit = gapMin === "all"
+      ? `${flaggedCount} with gaps ≥ ${GAP_FLAG}`
+      : `${groups.length} with gaps ≥ ${gapMin} · ${inWindowCount} in window`;
+    statusMeta.textContent = `${groups.length} matchups · ${gapBit} · ${games.length} source reports · collected ${collected}`;
 
     if (!groups.length) {
       board.innerHTML = gapMin !== "all"
@@ -415,7 +464,7 @@
               <div class="source-block">
                 <div class="source-label">
                   <span>${sourceIconHtml(g.source_id)}${escapeHtml(g.source_name)}${g.book ? ` · ${escapeHtml(g.book)}` : ""}</span>
-                  <span>${g.num_bets != null ? `${g.num_bets.toLocaleString()} bets tracked` : ""}</span>
+                  <span class="source-label-meta">${gapChipHtml(g.maxGap, g.maxGapMarket)}${g.num_bets != null ? `<span>${g.num_bets.toLocaleString()} bets tracked</span>` : ""}</span>
                 </div>
                 <div class="markets">
                   ${marketBlock(byMarket.spread, insightForMarket(insights, "spread"), g)}
@@ -429,7 +478,7 @@
           <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
               <h2 class="matchup-title">${teamChip(grp.awayAbbr, grp.away, grp.league)} <span class="matchup-at">@</span> ${teamChip(grp.homeAbbr, grp.home, grp.league)}</h2>
-              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${grp.maxGap != null && grp.maxGap >= GAP_FLAG ? `<span class="gap-tag${grp.maxGap >= GAP_STRONG ? " strong" : ""}">Δ ${grp.maxGap} · ${escapeHtml(grp.maxGapMarket)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
+              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${gapChipHtml(grp.maxGap, grp.maxGapMarket)}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
           </section>`;
@@ -513,6 +562,11 @@
   windowFilter.addEventListener("change", render);
   gapFilter.addEventListener("change", render);
   sortFilter.addEventListener("change", render);
+  window.addEventListener("popstate", () => {
+    applyQuery();
+    render();
+  });
+  applyQuery();
   refreshBtn.addEventListener("click", refresh);
   load().catch((err) => {
     statusMeta.textContent = `Failed to load: ${err.message}`;
