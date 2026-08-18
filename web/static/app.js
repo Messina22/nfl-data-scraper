@@ -8,6 +8,30 @@
   const gapFilter = document.getElementById("gapFilter");
   const sortFilter = document.getElementById("sortFilter");
   const refreshBtn = document.getElementById("refreshBtn");
+  const themeFilter = document.getElementById("themeFilter");
+
+  const THEMES = ["garden", "sport", "newsprint", "cobalt", "midnight", "terminal"];
+  const THEME_KEY = "splitboard-theme";
+
+  function readTheme() {
+    try {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (THEMES.includes(stored)) return stored;
+    } catch (_) {}
+    return "garden";
+  }
+
+  function applyTheme(id) {
+    const theme = THEMES.includes(id) ? id : "garden";
+    document.documentElement.dataset.theme = theme;
+    if (themeFilter) themeFilter.value = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (_) {}
+  }
+
+  applyTheme(readTheme());
+  window.addEventListener("pageshow", () => applyTheme(readTheme()));
 
   const GAP_FLAG = 10;
   const GAP_STRONG = 15;
@@ -566,6 +590,17 @@
     render();
   });
   applyQuery();
+  themeFilter.addEventListener("change", () => applyTheme(themeFilter.value));
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "t" && e.key !== "T") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || "";
+    if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") return;
+    e.preventDefault();
+    const current = document.documentElement.dataset.theme;
+    const idx = Math.max(0, THEMES.indexOf(current));
+    applyTheme(THEMES[(idx + 1) % THEMES.length]);
+  });
   refreshBtn.addEventListener("click", refresh);
   load().catch((err) => {
     statusMeta.textContent = `Failed to load: ${err.message}`;
