@@ -188,7 +188,7 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  align-items: baseline;
+  align-items: center;
   padding: 1rem 1.15rem 0.75rem;
   border-bottom: 1px solid var(--line);
 }
@@ -198,6 +198,33 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 3vw, 1.85rem);
   letter-spacing: -0.02em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
+.matchup-at {
+  opacity: 0.45;
+}
+
+.team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.team-logo {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.matchup-title .team-logo {
+  width: 2rem;
+  height: 2rem;
 }
 
 .matchup-meta {
@@ -305,8 +332,13 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+  align-items: center;
   font-size: 0.86rem;
   font-weight: 600;
+}
+
+.side-top .team-chip {
+  gap: 0.35rem;
 }
 
 .side-line {
