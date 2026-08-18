@@ -29,7 +29,25 @@ Additional sources can be added under `internal/sources/` and registered in `reg
 go run .                 # collect + serve dashboard on http://127.0.0.1:8080
 go run . -collect-only   # one-shot scrape into data/splits.json
 go run . -refresh 10m    # auto-refresh while serving (still localhost by default)
+go run . -dev            # serve assets from disk with browser live reload
 ```
+
+### Hot reload
+
+```bash
+go install github.com/bokwoon95/wgo@latest   # once
+wgo -file '\.go$' run . -dev
+```
+
+Editing `web/static/*` reloads the browser with no server restart — `-dev` serves the
+dashboard from disk instead of the embedded copy. Editing Go rebuilds and restarts,
+and the browser reloads when it reconnects. Keep `-file '\.go$'`: without it `wgo`
+restarts on asset edits too, which defeats the no-restart path.
+
+`-dev` resolves `web/static` relative to the working directory, so run it from the
+repo root (a missing `web/static/index.html` is a startup error). Production builds
+are unaffected — assets stay embedded, `/api/livereload` is not registered, and
+`/__livereload.js` is an empty no-op so the dashboard script tag does not 404.
 
 Bind address defaults to `127.0.0.1:8080`. Only use `-addr :8080` if you intentionally want LAN/public access — `/api/refresh` has no auth and will trigger outbound scrapes.
 
