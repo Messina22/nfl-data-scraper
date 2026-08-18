@@ -442,10 +442,9 @@
     const collected = snapshot.collected_at
       ? new Date(snapshot.collected_at).toLocaleString()
       : "never";
-    const gapBit = gapMin === "all"
-      ? `${flaggedCount} with gaps ≥ ${GAP_FLAG}`
-      : `${groups.length} with gaps ≥ ${gapMin} · ${inWindowCount} in window`;
-    statusMeta.textContent = `${groups.length} matchups · ${gapBit} · ${games.length} source reports · collected ${collected}`;
+    statusMeta.textContent = gapMin === "all"
+      ? `${groups.length} matchups · ${flaggedCount} with gaps ≥ ${GAP_FLAG} · ${games.length} source reports · collected ${collected}`
+      : `${groups.length} matchups with gaps ≥ ${gapMin} · ${inWindowCount} in window · ${games.length} source reports · collected ${collected}`;
 
     if (!groups.length) {
       board.innerHTML = gapMin !== "all"
