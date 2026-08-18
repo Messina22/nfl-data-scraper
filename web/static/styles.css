@@ -50,6 +50,7 @@ body {
 
 .top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 1rem 1.25rem;
   align-items: end;
@@ -75,11 +76,11 @@ body {
 
 .controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem 0.55rem;
   align-items: end;
   justify-content: flex-end;
-  max-width: 42rem;
+  min-width: min(100%, 36rem);
 }
 
 .control {
