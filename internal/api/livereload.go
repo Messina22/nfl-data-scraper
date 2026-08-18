@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	"nfl-data-scraper/web"
 )
 
 // liveReloadPoll is how often the server restats the static directory.
@@ -42,7 +40,7 @@ func newBootID() string {
 }
 
 func (s *Server) handleLiveReloadScript(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/javascript")
+	w.Header().Set("Content-Type", "text/javascript")
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = io.WriteString(w, liveReloadScript)
 }
@@ -55,21 +53,23 @@ func (s *Server) handleLiveReload(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Connection", "keep-alive")
 
+	// Tighten the browser's reconnect delay from its ~3s default so a
+	// wgo-triggered restart is noticed quickly.
+	fmt.Fprint(w, "retry: 500\n\n")
 	fmt.Fprintf(w, "event: hello\ndata: %s\n\n", s.bootID)
 	flusher.Flush()
 
 	ticker := time.NewTicker(liveReloadPoll)
 	defer ticker.Stop()
-	prev := dirFingerprint(web.StaticDir)
+	prev := dirFingerprint(s.staticDir)
 
 	for {
 		select {
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
-			cur := dirFingerprint(web.StaticDir)
+			cur := dirFingerprint(s.staticDir)
 			if cur == prev {
 				continue
 			}

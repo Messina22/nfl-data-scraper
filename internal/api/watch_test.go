@@ -53,6 +53,30 @@ func TestDirFingerprintDetectsNewFileInSubdir(t *testing.T) {
 	}
 }
 
+func TestDirFingerprintIgnoresDotfiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first := dirFingerprint(dir)
+
+	dotfile := filepath.Join(dir, ".styles.css.swp")
+	if err := os.WriteFile(dotfile, []byte("swap"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if second := dirFingerprint(dir); first != second {
+		t.Errorf("fingerprint changed after adding a dotfile:\n%q\n%q", first, second)
+	}
+
+	// Editing the dotfile must not change the fingerprint either.
+	if err := os.WriteFile(dotfile, []byte("swap edited"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if third := dirFingerprint(dir); first != third {
+		t.Errorf("fingerprint changed after editing a dotfile:\n%q\n%q", first, third)
+	}
+}
+
 func TestDirFingerprintMissingDirIsEmpty(t *testing.T) {
 	if got := dirFingerprint(filepath.Join(t.TempDir(), "nope")); got != "" {
 		t.Errorf("got %q, want empty string for a missing directory", got)

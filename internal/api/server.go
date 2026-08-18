@@ -24,7 +24,8 @@ type Server struct {
 	// Dev serves assets from disk and enables live reload. Never set in production.
 	Dev bool
 
-	bootID string
+	bootID    string
+	staticDir string
 
 	mu         sync.Mutex
 	collecting bool
@@ -40,6 +41,9 @@ func (s *Server) Handler() http.Handler {
 	if s.Dev {
 		if s.bootID == "" {
 			s.bootID = newBootID()
+		}
+		if s.staticDir == "" {
+			s.staticDir = web.StaticDir
 		}
 		mux.HandleFunc("/api/livereload", s.handleLiveReload)
 		mux.HandleFunc("/__livereload.js", s.handleLiveReloadScript)

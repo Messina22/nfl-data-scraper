@@ -17,6 +17,12 @@ func dirFingerprint(root string) string {
 		if err != nil || d.IsDir() {
 			return nil
 		}
+		// Skip dotfiles (editor swap files, .DS_Store) so they don't trigger
+		// spurious reloads while editing. Production also excludes them, since
+		// //go:embed static/* skips '.'- and '_'-prefixed files.
+		if strings.HasPrefix(d.Name(), ".") {
+			return nil
+		}
 		info, err := d.Info()
 		if err != nil {
 			return nil
