@@ -77,6 +77,70 @@ func TestDirFingerprintIgnoresDotfiles(t *testing.T) {
 	}
 }
 
+func TestDirFingerprintIgnoresUnderscorePrefixed(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first := dirFingerprint(dir)
+
+	if err := os.WriteFile(filepath.Join(dir, "_draft.css"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if second := dirFingerprint(dir); first != second {
+		t.Errorf("fingerprint changed after adding an underscore-prefixed file:\n%q\n%q", first, second)
+	}
+
+	sub := filepath.Join(dir, "_notes")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "x.css"), []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if third := dirFingerprint(dir); first != third {
+		t.Errorf("fingerprint changed after adding an underscore-prefixed directory:\n%q\n%q", first, third)
+	}
+}
+
+func TestDirFingerprintSkipsHiddenDirectories(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first := dirFingerprint(dir)
+
+	hidden := filepath.Join(dir, ".cache")
+	if err := os.Mkdir(hidden, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hidden, "foo.css"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if second := dirFingerprint(dir); first != second {
+		t.Errorf("fingerprint changed after adding a hidden directory:\n%q\n%q", first, second)
+	}
+}
+
+func TestDirFingerprintDetectsDeletion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "app.js")
+	if err := os.WriteFile(path, []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "styles.css"), []byte("b"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	first := dirFingerprint(dir)
+
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if second := dirFingerprint(dir); first == second {
+		t.Error("fingerprint did not change after deletion")
+	}
+}
+
 func TestDirFingerprintMissingDirIsEmpty(t *testing.T) {
 	if got := dirFingerprint(filepath.Join(t.TempDir(), "nope")); got != "" {
 		t.Errorf("got %q, want empty string for a missing directory", got)

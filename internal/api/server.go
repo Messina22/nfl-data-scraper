@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -24,11 +26,22 @@ type Server struct {
 	// Dev serves assets from disk and enables live reload. Never set in production.
 	Dev bool
 
-	bootID    string
+	// bootID identifies this process to live-reload clients. Generated on
+	// first SSE connect when empty.
+	bootID string
+	// staticDir is the on-disk asset root used for both serving and watching
+	// in Dev. Empty means web.StaticDir.
 	staticDir string
 
 	mu         sync.Mutex
 	collecting bool
+}
+
+func (s *Server) assetDir() string {
+	if s.staticDir != "" {
+		return s.staticDir
+	}
+	return web.StaticDir
 }
 
 func (s *Server) Handler() http.Handler {
@@ -37,21 +50,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/splits", s.handleSplits)
 	mux.HandleFunc("/api/sources", s.handleSources)
 	mux.HandleFunc("/api/refresh", s.handleRefresh)
+	mux.HandleFunc("/__livereload.js", s.handleLiveReloadScript)
 
+	var (
+		assets fs.FS
+		err    error
+	)
 	if s.Dev {
-		if s.bootID == "" {
-			s.bootID = newBootID()
-		}
-		if s.staticDir == "" {
-			s.staticDir = web.StaticDir
-		}
 		mux.HandleFunc("/api/livereload", s.handleLiveReload)
-		mux.HandleFunc("/__livereload.js", s.handleLiveReloadScript)
-	}
-
-	assets, err := web.Assets(s.Dev)
-	if err != nil {
-		log.Fatal(err)
+		assets = web.DevAssets(s.assetDir())
+	} else {
+		assets, err = web.Assets(false)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	var files http.Handler = http.FileServer(http.FS(assets))
 	if s.Dev {
@@ -66,8 +78,9 @@ func (s *Server) Start(ctx context.Context) error {
 		log.Printf("load store: %v", err)
 	}
 	if s.Dev {
-		if _, err := os.Stat(filepath.Join(web.StaticDir, "index.html")); err != nil {
-			log.Printf("dev mode: cannot read %s/index.html — run from the repo root: %v", web.StaticDir, err)
+		dir := s.assetDir()
+		if _, err := os.Stat(filepath.Join(dir, "index.html")); err != nil {
+			return fmt.Errorf("dev mode: cannot read %s/index.html — run from the repo root: %w", dir, err)
 		}
 	}
 	if len(s.Store.Latest().Games) == 0 {
