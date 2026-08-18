@@ -2,21 +2,21 @@
 
 Prioritized backlog for NFL Splitboard after the current collectors (DraftKings Network, VSiN DK/Circa, Action Network, Covers), contest-grouped dashboard, Action PRO insights, and last-good snapshot merge.
 
-In flight: [PR #7](https://github.com/Messina22/nfl-data-scraper/pull/7) (dev hot reload). Do not duplicate that work.
-
 ---
 
 ## Now — highest leverage on data we already collect
 
 These can ship without new publishers. The model already has `bet_pct`, `money_pct`, `line`, `odds`, `num_bets`, `season`/`week`, and per-source `FetchedAt`.
 
-### 1. Highlight bet % vs money % divergence
+### 1. Highlight bet % vs money % divergence — done
 
-Classic “public vs sharp” signal: lopsided tickets on one side, handle on the other. The bars sit next to each other today with no call-out.
+Classic “public vs sharp” signal: lopsided tickets on one side, handle on the other.
 
-- Flag sides where `|bet_pct - money_pct|` exceeds a threshold (e.g. 10–15 pts)
-- Sort/filter matchups by largest gap
-- Optional: color the money bar when it disagrees with bets
+Shipped on the dashboard (no new collection):
+
+- Flag sides where `|bet_pct - money_pct| ≥ 10` pts, with a Δ badge (`money` when handle is heavier, `bets` when tickets are)
+- Recolor the money bar on those sides
+- Sort by largest gap; filter to matchups that have one
 
 ### 2. Hide finished games and age stale reports
 
@@ -45,7 +45,7 @@ Cards already stack every source under one contest (`contestKey` in `web/static/
 
 - DraftKings Network has no entry in `SOURCE_ICON` (Action / VSiN / Covers do)
 - Sample-type chip: sportsbook handle vs Covers contest picks (README already warns these are different populations)
-- Sort: kickoff (current) | most lopsided | most bets tracked | biggest source disagreement
+- Sort: kickoff and largest bet vs money gap are shipped; still open: most bets tracked | biggest source disagreement
 - Health endpoint today is `{ok: true}` only — include per-source OK/error so a probe can catch a dead collector
 
 ---
@@ -108,12 +108,11 @@ Worth doing after history + divergence are in, not before.
 
 ## Suggested order of attack
 
-1. Divergence highlighting + sort/filter (pure UI on current snapshot)
-2. Finished-game prune + stale source age
-3. Team / week / default-NFL filters; DK icon; sample-type chips
-4. Snapshot history
-5. Action / VSiN / Covers for MLB–NBA–NHL
-6. Refresh auth + httpx retries
-7. Alerts on top of history
+1. Finished-game prune + stale source age
+2. Team / week / default-NFL filters; DK icon; sample-type chips
+3. Snapshot history
+4. Action / VSiN / Covers for MLB–NBA–NHL
+5. Refresh auth + httpx retries
+6. Alerts on top of history
 
 Keep treating each publisher as its own lens. New features should make disagreement easier to see, not hide it.

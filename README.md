@@ -6,6 +6,7 @@ Collect and display **betting splits** — percentage of **bets** and **money (h
 
 - Multi-source collectors with a shared `Source` interface
 - Dashboard at `/` grouping the same matchup across sources, with **sport** and source filters
+- Matchups with a **10+ pt bet vs money gap** (public tickets vs handle) are flagged, sortable, and filterable
 - JSON API at `/api/splits` (plus `/api/sources`, `/api/refresh`, `/api/health`)
 - Snapshot persistence to `data/splits.json` (per-source merge keeps last-good data when a source fails)
 - Periodic refresh (default every 15 minutes)

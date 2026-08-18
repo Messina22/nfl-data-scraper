@@ -5,8 +5,13 @@
   const sourceFilter = document.getElementById("sourceFilter");
   const leagueFilter = document.getElementById("leagueFilter");
   const windowFilter = document.getElementById("windowFilter");
+  const sortFilter = document.getElementById("sortFilter");
+  const splitFilter = document.getElementById("splitFilter");
   const refreshBtn = document.getElementById("refreshBtn");
   const themeFilter = document.getElementById("themeFilter");
+
+  // Public vs handle: flag a side when tickets and money disagree by this many points.
+  const DIVERGE_PTS = 10;
 
   const THEMES = ["garden", "sport", "newsprint", "cobalt", "midnight", "terminal"];
   const THEME_KEY = "splitboard-theme";
@@ -41,6 +46,33 @@
   function fmtPct(v) {
     const p = pct(v);
     return p == null ? "—" : `${p}%`;
+  }
+
+  function sideGap(side) {
+    const bet = pct(side.bet_pct);
+    const money = pct(side.money_pct);
+    if (bet == null || money == null) return null;
+    return Math.abs(bet - money);
+  }
+
+  function reportMaxGap(g) {
+    let max = 0;
+    for (const market of g.markets || []) {
+      for (const side of market.sides || []) {
+        const gap = sideGap(side);
+        if (gap != null && gap > max) max = gap;
+      }
+    }
+    return max;
+  }
+
+  function groupMaxGap(grp) {
+    let max = 0;
+    for (const g of grp.reports || []) {
+      const gap = reportMaxGap(g);
+      if (gap > max) max = gap;
+    }
+    return max;
   }
 
   function fmtLine(side) {
@@ -273,11 +305,23 @@
       .map((side) => {
         const bet = pct(side.bet_pct);
         const money = pct(side.money_pct);
+        const gap = sideGap(side);
+        const diverges = gap != null && gap >= DIVERGE_PTS;
+        const lean = diverges && money != null && bet != null && money > bet ? "money" : "bets";
+        const title = diverges
+          ? `Bet ${fmtPct(side.bet_pct)} vs money ${fmtPct(side.money_pct)} (${gap} pt gap)`
+          : "";
+        const badge = diverges
+          ? `<span class="diverge-badge" title="${escapeHtml(title)}">Δ${gap} ${lean}</span>`
+          : "";
         return `
-          <div class="side">
+          <div class="${diverges ? "side diverge" : "side"}"${diverges ? ` data-gap="${gap}"` : ""}>
             <div class="side-top">
               ${sideLabelHtml(side, g)}
-              <span class="side-line">${escapeHtml(fmtLine(side))}</span>
+              <span class="side-meta">
+                ${badge}
+                <span class="side-line">${escapeHtml(fmtLine(side))}</span>
+              </span>
             </div>
             <div class="bars">
               <div class="bar-row">
@@ -287,7 +331,7 @@
               </div>
               <div class="bar-row">
                 <span>Money</span>
-                <div class="track"><div class="fill money" data-width="${money ?? 0}"></div></div>
+                <div class="track"><div class="fill money${diverges ? " diverge" : ""}" data-width="${money ?? 0}"></div></div>
                 <span>${fmtPct(side.money_pct)}</span>
               </div>
             </div>
@@ -322,6 +366,8 @@
     const source = sourceFilter.value;
     const league = leagueFilter.value;
     const days = windowFilter.value;
+    const sortBy = sortFilter ? sortFilter.value : "kickoff";
+    const splitView = splitFilter ? splitFilter.value : "all";
     let games = snapshot.games || [];
     if (source !== "all") games = games.filter((g) => g.source_id === source);
     if (league !== "all") {
@@ -329,7 +375,15 @@
     }
     games = games.filter((g) => inWindow(g.start_time, days));
 
-    const groups = groupGames(games);
+    let groups = groupGames(games);
+    if (splitView === "diverge") {
+      groups = groups.filter((grp) => groupMaxGap(grp) >= DIVERGE_PTS);
+    }
+    if (sortBy === "divergence") {
+      groups.sort(
+        (a, b) => groupMaxGap(b) - groupMaxGap(a) || String(a.start || "").localeCompare(String(b.start || "")),
+      );
+    }
     sourcePills.innerHTML = (snapshot.sources || [])
       .map((s) => {
         const cls = s.ok ? "pill ok" : "pill";
@@ -344,12 +398,20 @@
     statusMeta.textContent = `${groups.length} matchups · ${games.length} source reports · collected ${collected}`;
 
     if (!groups.length) {
-      board.innerHTML = `<div class="empty">No splits in this window. Try “All scheduled” or refresh after sources update.</div>`;
+      board.innerHTML =
+        splitView === "diverge"
+          ? `<div class="empty">No matchups with a ${DIVERGE_PTS}+ pt bet vs money gap in this window.</div>`
+          : `<div class="empty">No splits in this window. Try “All scheduled” or refresh after sources update.</div>`;
       return;
     }
 
     board.innerHTML = groups
       .map((grp, idx) => {
+        const maxGap = groupMaxGap(grp);
+        const divergeTag =
+          maxGap >= DIVERGE_PTS
+            ? `<span class="diverge-tag" title="Largest bet % vs money % gap on this card">Δ${maxGap} bet vs money</span>`
+            : "";
         const reports = grp.reports
           .map((g) => {
             const byMarket = Object.fromEntries((g.markets || []).map((m) => [m.market, m]));
@@ -369,10 +431,10 @@
           })
           .join("");
         return `
-          <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
+          <section class="matchup${maxGap >= DIVERGE_PTS ? " has-diverge" : ""}" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
               <h2 class="matchup-title">${teamChip(grp.awayAbbr, grp.away, grp.league)} <span class="matchup-at">@</span> ${teamChip(grp.homeAbbr, grp.home, grp.league)}</h2>
-              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
+              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${divergeTag}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
           </section>`;
@@ -454,6 +516,8 @@
   sourceFilter.addEventListener("change", render);
   leagueFilter.addEventListener("change", render);
   windowFilter.addEventListener("change", render);
+  if (sortFilter) sortFilter.addEventListener("change", render);
+  if (splitFilter) splitFilter.addEventListener("change", render);
   themeFilter.addEventListener("change", () => applyTheme(themeFilter.value));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "t" && e.key !== "T") return;

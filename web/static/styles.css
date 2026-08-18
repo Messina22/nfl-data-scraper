@@ -422,6 +422,22 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   text-transform: uppercase;
 }
 
+.diverge-tag,
+.diverge-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-control);
+  background: color-mix(in oklch, var(--bad) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--bad) 28%, transparent);
+  color: var(--bad);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .source-block {
   padding: 0.85rem 1.15rem 1.05rem;
   border-top: 1px dashed var(--line);
@@ -500,6 +516,15 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 }
 .side:last-child { margin-bottom: 0; }
 
+.side.diverge {
+  padding: 0.4rem 0.45rem;
+  margin-left: -0.45rem;
+  margin-right: -0.45rem;
+  border-radius: var(--radius-inner);
+  background: color-mix(in oklch, var(--bad) 9%, transparent);
+  border: 1px solid color-mix(in oklch, var(--bad) 22%, transparent);
+}
+
 .side-top {
   display: flex;
   justify-content: space-between;
@@ -511,6 +536,13 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 
 .side-top .team-chip {
   gap: 0.35rem;
+}
+
+.side-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .side-line {
@@ -547,6 +579,13 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 }
 .fill.bets { background: linear-gradient(90deg, var(--bets-from), var(--bets)); }
 .fill.money { background: linear-gradient(90deg, var(--money-from), var(--money)); }
+.fill.money.diverge {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--money-from) 35%, var(--bad)),
+    var(--bad)
+  );
+}
 
 .empty, .error-note {
   padding: 2.5rem 1rem;
