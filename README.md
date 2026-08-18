@@ -83,7 +83,7 @@ Tokens expire; refresh the env var when the source starts failing auth.
 - `GET /api/splits` — latest snapshot (sources + game reports)
 - `GET /api/sources` — per-source status
 - `POST /api/refresh` — trigger a fresh collection
-- `GET /api/health` — liveness
+- `GET /api/health` — liveness plus per-source collector `ok` / `error` / `games` (HTTP 200 even when a source failed)
 
 ## Project layout
 

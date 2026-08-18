@@ -2,7 +2,7 @@
 
 Prioritized backlog for NFL Splitboard after the current collectors (DraftKings Network, VSiN DK/Circa, Action Network, Covers), contest-grouped dashboard, Action PRO insights, and last-good snapshot merge.
 
-In flight: [PR #7](https://github.com/Messina22/nfl-data-scraper/pull/7) (dev hot reload). Do not duplicate that work.
+In flight: [PR #12](https://github.com/Messina22/nfl-data-scraper/pull/12) (bet vs money divergence). Do not duplicate that work.
 
 ---
 
@@ -46,7 +46,7 @@ Cards already stack every source under one contest (`contestKey` in `web/static/
 - DraftKings Network has no entry in `SOURCE_ICON` (Action / VSiN / Covers do)
 - Sample-type chip: sportsbook handle vs Covers contest picks (README already warns these are different populations)
 - Sort: kickoff (current) | most lopsided | most bets tracked | biggest source disagreement
-- Health endpoint today is `{ok: true}` only — include per-source OK/error so a probe can catch a dead collector
+- Health endpoint per-source OK/error — **done.** `GET /api/health` still returns HTTP 200 (liveness). Body includes each collector’s `ok` / `error` / `games`; overall `ok` is false only when every source failed (Covers offseason `ok: false` does not fail the probe)
 
 ---
 
