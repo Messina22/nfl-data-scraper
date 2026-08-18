@@ -80,6 +80,8 @@ internal/
   httpx/                # shared HTTP client
 web/static/             # dashboard UI
 data/                   # written snapshots (gitignored)
+docs/ROADMAP.md         # product backlog
+docs/PUBLIC_APIS_ROADMAP.md  # third-party APIs to wire later
 ```
 
 ## Notes

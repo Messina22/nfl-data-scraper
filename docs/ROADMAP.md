@@ -104,6 +104,8 @@ Worth doing after history + divergence are in, not before.
 | Dark mode, PWA, kickoff countdown | Polish; not blocked on data |
 | Injuries, news, DFS overlap | Different product |
 
+Third-party APIs that could feed those later items (extra splits lenses, odds, scores, weather, news, alerts) are listed separately in [`docs/PUBLIC_APIS_ROADMAP.md`](PUBLIC_APIS_ROADMAP.md), sourced from [public-apis/public-apis](https://github.com/public-apis/public-apis). Do not start that list before the UI/history work above; Lumify + Bet Better are the first catalog entries worth wiring.
+
 ---
 
 ## Suggested order of attack
