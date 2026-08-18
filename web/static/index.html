@@ -1,12 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="garden">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NFL Splitboard — Betting Splits Dashboard</title>
+  <script>
+    (function () {
+      var allowed = ["garden", "sport", "newsprint", "cobalt", "midnight", "terminal"];
+      try {
+        var stored = localStorage.getItem("splitboard-theme");
+        if (allowed.indexOf(stored) >= 0) document.documentElement.dataset.theme = stored;
+      } catch (e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Crimson+Pro:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Space+Grotesk:wght@500;600;700&family=Young+Serif&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -36,6 +45,17 @@
         <span>Source</span>
         <select id="sourceFilter">
           <option value="all">All sources</option>
+        </select>
+      </label>
+      <label class="control">
+        <span>Theme</span>
+        <select id="themeFilter" autocomplete="off" title="Press T to cycle themes">
+          <option value="garden">Garden</option>
+          <option value="sport">Sport</option>
+          <option value="newsprint">Newsprint</option>
+          <option value="cobalt">Cobalt</option>
+          <option value="midnight">Midnight</option>
+          <option value="terminal">Terminal</option>
         </select>
       </label>
       <button id="refreshBtn" type="button">Refresh data</button>
