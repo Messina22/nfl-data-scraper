@@ -19,6 +19,7 @@ func main() {
 	dataPath := flag.String("data", envOr("SPLITS_DATA", "data/splits.json"), "snapshot JSON path")
 	refresh := flag.Duration("refresh", 15*time.Minute, "auto-refresh interval (0 to disable)")
 	collectOnly := flag.Bool("collect-only", false, "collect once and write snapshot, then exit")
+	dev := flag.Bool("dev", false, "serve assets from disk and enable live reload")
 	flag.Parse()
 
 	st := store.New(*dataPath)
@@ -43,6 +44,7 @@ func main() {
 		Store:           st,
 		Addr:            *addr,
 		RefreshInterval: *refresh,
+		Dev:             *dev,
 	}
 	if err := srv.Start(ctx); err != nil {
 		log.Fatal(err)
