@@ -10,13 +10,9 @@ In flight: [PR #7](https://github.com/Messina22/nfl-data-scraper/pull/7) (dev ho
 
 These can ship without new publishers. The model already has `bet_pct`, `money_pct`, `line`, `odds`, `num_bets`, `season`/`week`, and per-source `FetchedAt`.
 
-### 1. Highlight bet % vs money % divergence
+### 1. Highlight bet % vs money % divergence — shipped
 
-Classic “public vs sharp” signal: lopsided tickets on one side, handle on the other. The bars sit next to each other today with no call-out.
-
-- Flag sides where `|bet_pct - money_pct|` exceeds a threshold (e.g. 10–15 pts)
-- Sort/filter matchups by largest gap
-- Optional: color the money bar when it disagrees with bets
+Classic “public vs sharp” signal: lopsided tickets on one side, handle on the other. Dashboard flags sides where `|bet_pct - money_pct|` ≥ 10 (strong ≥ 15), with a Gaps filter and Largest-gap sort. Handle-heavy money bars recolor when they disagree with tickets.
 
 ### 2. Hide finished games and age stale reports
 
@@ -108,7 +104,7 @@ Worth doing after history + divergence are in, not before.
 
 ## Suggested order of attack
 
-1. Divergence highlighting + sort/filter (pure UI on current snapshot)
+1. Divergence highlighting + sort/filter (pure UI on current snapshot) — shipped
 2. Finished-game prune + stale source age
 3. Team / week / default-NFL filters; DK icon; sample-type chips
 4. Snapshot history
