@@ -94,6 +94,7 @@
     }
     return map;
   })();
+  const NFL_CANONICAL = new Set(Object.values(NFL_TEAM_ABBR));
 
   function normalizeTeamKey(name) {
     return (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -127,6 +128,27 @@
     return normalizeTeamKey(name) || "unk";
   }
 
+  function espnNflSlug(abbr) {
+    if (abbr === "WAS") return "wsh";
+    return String(abbr).toLowerCase();
+  }
+
+  function teamLogoUrl(abbr, name, league) {
+    if (!isNflLeague(league)) return "";
+    const canon = teamAbbr(abbr, name, league);
+    if (!NFL_CANONICAL.has(canon)) return "";
+    return `https://a.espncdn.com/i/teamlogos/nfl/500/${espnNflSlug(canon)}.png`;
+  }
+
+  function teamChip(abbr, name, league) {
+    const label = escapeHtml(name || abbr || "");
+    const src = teamLogoUrl(abbr, name, league);
+    const img = src
+      ? `<img class="team-logo" src="${escapeHtml(src)}" alt="" onerror="this.hidden=true" />`
+      : "";
+    return `<span class="team-chip">${img}<span>${label}</span></span>`;
+  }
+
   function contestKey(g) {
     const league = groupingLeague(g.league);
     const day = g.start_time ? g.start_time.slice(0, 10) : "na";
@@ -151,6 +173,8 @@
           key,
           away: g.away_team,
           home: g.home_team,
+          awayAbbr: teamAbbr(g.away_abbr, g.away_team, g.league),
+          homeAbbr: teamAbbr(g.home_abbr, g.home_team, g.league),
           league: g.league || "",
           start: g.start_time,
           reports: [],
@@ -207,7 +231,17 @@
     </div>`;
   }
 
-  function marketBlock(market, insight) {
+  function sideLabelHtml(side, g) {
+    if (side.side === "away") {
+      return teamChip(g.away_abbr, side.label || g.away_team, g.league);
+    }
+    if (side.side === "home") {
+      return teamChip(g.home_abbr, side.label || g.home_team, g.league);
+    }
+    return escapeHtml(side.label || side.side);
+  }
+
+  function marketBlock(market, insight, g) {
     if (!market) {
       return `<article class="market"><h4>Unavailable</h4><p class="error-note" style="padding:0.4rem 0">No data</p></article>`;
     }
@@ -218,7 +252,7 @@
         return `
           <div class="side">
             <div class="side-top">
-              <span>${escapeHtml(side.label || side.side)}</span>
+              ${sideLabelHtml(side, g)}
               <span class="side-line">${escapeHtml(fmtLine(side))}</span>
             </div>
             <div class="bars">
@@ -303,9 +337,9 @@
                   <span>${g.num_bets != null ? `${g.num_bets.toLocaleString()} bets tracked` : ""}</span>
                 </div>
                 <div class="markets">
-                  ${marketBlock(byMarket.spread, insightForMarket(insights, "spread"))}
-                  ${marketBlock(byMarket.moneyline, insightForMarket(insights, "moneyline"))}
-                  ${marketBlock(byMarket.total, insightForMarket(insights, "total"))}
+                  ${marketBlock(byMarket.spread, insightForMarket(insights, "spread"), g)}
+                  ${marketBlock(byMarket.moneyline, insightForMarket(insights, "moneyline"), g)}
+                  ${marketBlock(byMarket.total, insightForMarket(insights, "total"), g)}
                 </div>
               </div>`;
           })
@@ -313,7 +347,7 @@
         return `
           <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
-              <h2 class="matchup-title">${escapeHtml(grp.away)} <span style="opacity:.45">@</span> ${escapeHtml(grp.home)}</h2>
+              <h2 class="matchup-title">${teamChip(grp.awayAbbr, grp.away, grp.league)} <span class="matchup-at">@</span> ${teamChip(grp.homeAbbr, grp.home, grp.league)}</h2>
               <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
