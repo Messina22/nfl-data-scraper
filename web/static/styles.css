@@ -217,8 +217,9 @@ body {
 
 .top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem 1.25rem;
   align-items: end;
   padding: 2.25rem 0 1.25rem;
   animation: rise 0.7s ease both;
@@ -243,20 +244,22 @@ body {
 
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
+  gap: 0.5rem 0.55rem;
   align-items: end;
   justify-content: flex-end;
+  min-width: min(100%, 44rem);
 }
 
 .control {
   display: grid;
-  gap: 0.3rem;
-  font-size: 0.75rem;
+  gap: 0.25rem;
+  font-size: 0.68rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-soft);
+  min-width: 0;
 }
 
 select, button {
@@ -265,8 +268,13 @@ select, button {
   border: 1px solid var(--line);
   background: var(--panel-solid);
   color: var(--ink);
-  padding: 0.65rem 1rem;
-  min-height: 2.6rem;
+  padding: 0.5rem 0.7rem;
+  min-height: 2.35rem;
+  font-size: 0.82rem;
+}
+
+.control select {
+  max-width: 9.6rem;
 }
 
 button {
@@ -409,7 +417,8 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   justify-content: flex-end;
 }
 
-.league-tag {
+.league-tag,
+.gap-tag {
   display: inline-flex;
   align-items: center;
   padding: 0.15rem 0.5rem;
@@ -420,6 +429,17 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.gap-tag {
+  border-color: color-mix(in oklch, var(--accent) 32%, var(--line));
+  background: color-mix(in oklch, var(--accent) 12%, var(--surface-soft));
+  color: var(--accent);
+}
+
+.gap-tag.strong {
+  background: color-mix(in oklch, var(--accent) 20%, var(--surface-soft));
+  border-color: color-mix(in oklch, var(--accent) 45%, var(--line));
 }
 
 .source-block {
@@ -439,6 +459,18 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-soft);
+}
+
+.source-label-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.source-label .gap-tag {
+  text-transform: uppercase;
 }
 
 .markets {
@@ -500,17 +532,63 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 }
 .side:last-child { margin-bottom: 0; }
 
+.side.diverge {
+  padding: 0.4rem 0.5rem 0.5rem;
+  margin-inline: -0.5rem;
+  border-radius: var(--radius-inner);
+  border-left: 3px solid var(--accent);
+  background: color-mix(in oklch, var(--accent) 8%, transparent);
+}
+
+.side.diverge-strong {
+  border-left-width: 4px;
+  background: color-mix(in oklch, var(--accent) 14%, transparent);
+}
+
 .side-top {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem 0.5rem;
   align-items: center;
+  flex-wrap: wrap;
   font-size: 0.86rem;
   font-weight: 600;
 }
 
 .side-top .team-chip {
   gap: 0.35rem;
+  min-width: 0;
+}
+
+.side-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.gap-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.gap-chip.gap-money {
+  background: color-mix(in oklch, var(--money) 18%, transparent);
+  color: var(--money);
+  border: 1px solid color-mix(in oklch, var(--money) 32%, transparent);
+}
+
+.gap-chip.gap-bets {
+  background: color-mix(in oklch, var(--bets) 14%, transparent);
+  color: var(--bets);
+  border: 1px solid color-mix(in oklch, var(--bets) 28%, transparent);
 }
 
 .side-line {
@@ -547,6 +625,9 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 }
 .fill.bets { background: linear-gradient(90deg, var(--bets-from), var(--bets)); }
 .fill.money { background: linear-gradient(90deg, var(--money-from), var(--money)); }
+.fill.money.diverge {
+  background: linear-gradient(90deg, var(--money-from), color-mix(in oklch, var(--money) 45%, var(--accent)));
+}
 
 .empty, .error-note {
   padding: 2.5rem 1rem;
@@ -568,7 +649,7 @@ button:disabled { opacity: 0.6; cursor: wait; transform: none; }
 
 @media (max-width: 900px) {
   .top { flex-direction: column; align-items: stretch; }
-  .controls { justify-content: stretch; }
+  .controls { flex-wrap: wrap; justify-content: stretch; min-width: 0; }
   .markets { grid-template-columns: 1fr; }
   .matchup-head { flex-direction: column; align-items: start; }
 }

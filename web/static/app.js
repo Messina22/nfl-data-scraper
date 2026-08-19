@@ -5,6 +5,8 @@
   const sourceFilter = document.getElementById("sourceFilter");
   const leagueFilter = document.getElementById("leagueFilter");
   const windowFilter = document.getElementById("windowFilter");
+  const gapFilter = document.getElementById("gapFilter");
+  const sortFilter = document.getElementById("sortFilter");
   const refreshBtn = document.getElementById("refreshBtn");
   const themeFilter = document.getElementById("themeFilter");
 
@@ -31,11 +33,76 @@
   applyTheme(readTheme());
   window.addEventListener("pageshow", () => applyTheme(readTheme()));
 
+  const GAP_FLAG = 10;
+  const GAP_STRONG = 15;
+
   let snapshot = { games: [], sources: [], collected_at: null };
 
   function pct(v) {
     if (v == null || Number.isNaN(Number(v))) return null;
     return Math.round(Number(v));
+  }
+
+  // |bet % − money %| on one side. Null when either percent is missing
+  // (Covers consensus, paywalled Action money, etc.).
+  function gapInfo(side) {
+    const bet = pct(side && side.bet_pct);
+    const money = pct(side && side.money_pct);
+    if (bet == null || money == null) return null;
+    const gap = Math.abs(bet - money);
+    const lean = gap === 0 ? null : money > bet ? "money" : "bets";
+    return { gap, lean, bet, money };
+  }
+
+  function reportGap(g) {
+    let maxGap = null;
+    let maxMarket = "";
+    for (const m of g.markets || []) {
+      for (const side of m.sides || []) {
+        const info = gapInfo(side);
+        if (!info) continue;
+        if (maxGap == null || info.gap > maxGap) {
+          maxGap = info.gap;
+          maxMarket = m.market || "";
+        }
+      }
+    }
+    return { maxGap, maxMarket };
+  }
+
+  function attachGaps(groups) {
+    for (const grp of groups) {
+      let maxGap = null;
+      let maxMarket = "";
+      for (const g of grp.reports) {
+        const r = reportGap(g);
+        g.maxGap = r.maxGap;
+        g.maxGapMarket = r.maxMarket;
+        if (r.maxGap == null) continue;
+        if (maxGap == null || r.maxGap > maxGap) {
+          maxGap = r.maxGap;
+          maxMarket = r.maxMarket;
+        }
+      }
+      grp.maxGap = maxGap;
+      grp.maxGapMarket = maxMarket;
+    }
+  }
+
+  function sortGroups(groups, mode) {
+    if (mode !== "gap") return groups;
+    groups.sort((a, b) => {
+      const ag = a.maxGap;
+      const bg = b.maxGap;
+      if (ag == null && bg == null) {
+        return String(a.start || "").localeCompare(String(b.start || ""));
+      }
+      if (ag == null) return 1;
+      if (bg == null) return -1;
+      if (bg !== ag) return bg - ag;
+      return String(a.start || "").localeCompare(String(b.start || ""));
+    });
+    return groups;
   }
 
   function fmtPct(v) {
@@ -273,11 +340,27 @@
       .map((side) => {
         const bet = pct(side.bet_pct);
         const money = pct(side.money_pct);
+        const info = gapInfo(side);
+        const flagged = info && info.gap >= GAP_FLAG;
+        const strong = info && info.gap >= GAP_STRONG;
+        const sideClass = ["side"];
+        if (flagged) sideClass.push("diverge");
+        if (strong) sideClass.push("diverge-strong");
+        const moneyFillClass = flagged && info.lean === "money" ? "fill money diverge" : "fill money";
+        let chip = "";
+        if (flagged) {
+          const label = info.lean === "money" ? `Money +${info.gap}` : `Bets +${info.gap}`;
+          const chipClass = info.lean === "money" ? "gap-chip gap-money" : "gap-chip gap-bets";
+          chip = `<span class="${chipClass}" title="|bet % − money %| = ${info.gap}">${escapeHtml(label)}</span>`;
+        }
         return `
-          <div class="side">
+          <div class="${sideClass.join(" ")}">
             <div class="side-top">
               ${sideLabelHtml(side, g)}
-              <span class="side-line">${escapeHtml(fmtLine(side))}</span>
+              <span class="side-meta">
+                ${chip}
+                <span class="side-line">${escapeHtml(fmtLine(side))}</span>
+              </span>
             </div>
             <div class="bars">
               <div class="bar-row">
@@ -287,7 +370,7 @@
               </div>
               <div class="bar-row">
                 <span>Money</span>
-                <div class="track"><div class="fill money" data-width="${money ?? 0}"></div></div>
+                <div class="track"><div class="${moneyFillClass}" data-width="${money ?? 0}"></div></div>
                 <span>${fmtPct(side.money_pct)}</span>
               </div>
             </div>
@@ -303,6 +386,36 @@
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
+  }
+
+  function gapChipHtml(gap, market, extraClass) {
+    if (gap == null || gap < GAP_FLAG) return "";
+    const strong = gap >= GAP_STRONG ? " strong" : "";
+    const cls = extraClass ? ` ${extraClass}` : "";
+    return `<span class="gap-tag${strong}${cls}">Δ ${gap}${market ? ` · ${escapeHtml(market)}` : ""}</span>`;
+  }
+
+  function applyQuery() {
+    const p = new URLSearchParams(location.search);
+    const gaps = p.get("gaps");
+    const sort = p.get("sort");
+    if (gaps && [...gapFilter.options].some((o) => o.value === gaps)) {
+      gapFilter.value = gaps;
+    }
+    if (sort && [...sortFilter.options].some((o) => o.value === sort)) {
+      sortFilter.value = sort;
+    }
+  }
+
+  function syncQuery() {
+    const url = new URL(location.href);
+    if (gapFilter.value === "all") url.searchParams.delete("gaps");
+    else url.searchParams.set("gaps", gapFilter.value);
+    if (sortFilter.value === "kickoff") url.searchParams.delete("sort");
+    else url.searchParams.set("sort", sortFilter.value);
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const cur = `${location.pathname}${location.search}${location.hash}`;
+    if (next !== cur) history.replaceState(null, "", next);
   }
 
   function formatWhen(iso) {
@@ -322,6 +435,8 @@
     const source = sourceFilter.value;
     const league = leagueFilter.value;
     const days = windowFilter.value;
+    const gapMin = gapFilter.value;
+    const sortMode = sortFilter.value;
     let games = snapshot.games || [];
     if (source !== "all") games = games.filter((g) => g.source_id === source);
     if (league !== "all") {
@@ -329,7 +444,17 @@
     }
     games = games.filter((g) => inWindow(g.start_time, days));
 
-    const groups = groupGames(games);
+    let groups = groupGames(games);
+    attachGaps(groups);
+    const inWindowCount = groups.length;
+    const flaggedCount = groups.filter((g) => g.maxGap != null && g.maxGap >= GAP_FLAG).length;
+    if (gapMin !== "all") {
+      const min = Number(gapMin);
+      groups = groups.filter((g) => g.maxGap != null && g.maxGap >= min);
+    }
+    sortGroups(groups, sortMode);
+    syncQuery();
+
     sourcePills.innerHTML = (snapshot.sources || [])
       .map((s) => {
         const cls = s.ok ? "pill ok" : "pill";
@@ -341,10 +466,14 @@
     const collected = snapshot.collected_at
       ? new Date(snapshot.collected_at).toLocaleString()
       : "never";
-    statusMeta.textContent = `${groups.length} matchups · ${games.length} source reports · collected ${collected}`;
+    statusMeta.textContent = gapMin === "all"
+      ? `${groups.length} matchups · ${flaggedCount} with gaps ≥ ${GAP_FLAG} · ${games.length} source reports · collected ${collected}`
+      : `${groups.length} matchups with gaps ≥ ${gapMin} · ${inWindowCount} in window · ${games.length} source reports · collected ${collected}`;
 
     if (!groups.length) {
-      board.innerHTML = `<div class="empty">No splits in this window. Try “All scheduled” or refresh after sources update.</div>`;
+      board.innerHTML = gapMin !== "all"
+        ? `<div class="empty">No matchups with a bet/money gap ≥ ${escapeHtml(gapMin)} pts in this window.</div>`
+        : `<div class="empty">No splits in this window. Try “All scheduled” or refresh after sources update.</div>`;
       return;
     }
 
@@ -358,7 +487,7 @@
               <div class="source-block">
                 <div class="source-label">
                   <span>${sourceIconHtml(g.source_id)}${escapeHtml(g.source_name)}${g.book ? ` · ${escapeHtml(g.book)}` : ""}</span>
-                  <span>${g.num_bets != null ? `${g.num_bets.toLocaleString()} bets tracked` : ""}</span>
+                  <span class="source-label-meta">${gapChipHtml(g.maxGap, g.maxGapMarket)}${g.num_bets != null ? `<span>${g.num_bets.toLocaleString()} bets tracked</span>` : ""}</span>
                 </div>
                 <div class="markets">
                   ${marketBlock(byMarket.spread, insightForMarket(insights, "spread"), g)}
@@ -372,7 +501,7 @@
           <section class="matchup" style="animation-delay:${Math.min(idx * 0.04, 0.4)}s">
             <div class="matchup-head">
               <h2 class="matchup-title">${teamChip(grp.awayAbbr, grp.away, grp.league)} <span class="matchup-at">@</span> ${teamChip(grp.homeAbbr, grp.home, grp.league)}</h2>
-              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${escapeHtml(formatWhen(grp.start))}</div>
+              <div class="matchup-meta">${grp.league ? `<span class="league-tag">${escapeHtml(grp.league)}</span>` : ""}${gapChipHtml(grp.maxGap, grp.maxGapMarket)}${escapeHtml(formatWhen(grp.start))}</div>
             </div>
             ${reports}
           </section>`;
@@ -454,6 +583,13 @@
   sourceFilter.addEventListener("change", render);
   leagueFilter.addEventListener("change", render);
   windowFilter.addEventListener("change", render);
+  gapFilter.addEventListener("change", render);
+  sortFilter.addEventListener("change", render);
+  window.addEventListener("popstate", () => {
+    applyQuery();
+    render();
+  });
+  applyQuery();
   themeFilter.addEventListener("change", () => applyTheme(themeFilter.value));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "t" && e.key !== "T") return;
