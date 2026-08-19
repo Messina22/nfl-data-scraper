@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"nfl-data-scraper/internal/collect"
+	"nfl-data-scraper/internal/models"
 	"nfl-data-scraper/internal/store"
 	"nfl-data-scraper/web"
 )
@@ -149,7 +150,7 @@ func (s *Server) endCollect() {
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]any{"ok": true})
+	writeJSON(w, healthFromSnapshot(s.Store.Latest()))
 }
 
 func (s *Server) handleSplits(w http.ResponseWriter, r *http.Request) {
@@ -186,4 +187,39 @@ func writeJSON(w http.ResponseWriter, v any) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(v)
+}
+
+// healthResponse is the /api/health payload. HTTP status stays 200 so a
+// liveness probe does not restart the process when one collector is down.
+type healthResponse struct {
+	OK          bool                  `json:"ok"`
+	Failed      int                   `json:"failed"`
+	CollectedAt time.Time             `json:"collected_at,omitempty"`
+	Sources     []models.SourceStatus `json:"sources"`
+}
+
+// healthFromSnapshot reports process liveness plus each collector's last
+// status. Overall ok is true when no collection has run yet, or when at least
+// one source succeeded — a single expected failure (Covers in the offseason)
+// must not fail the probe.
+func healthFromSnapshot(snap models.Snapshot) healthResponse {
+	sources := snap.Sources
+	if sources == nil {
+		sources = []models.SourceStatus{}
+	}
+	okCount := 0
+	failed := 0
+	for _, src := range sources {
+		if src.OK {
+			okCount++
+		} else {
+			failed++
+		}
+	}
+	return healthResponse{
+		OK:          len(sources) == 0 || okCount > 0,
+		Failed:      failed,
+		CollectedAt: snap.CollectedAt,
+		Sources:     sources,
+	}
 }
